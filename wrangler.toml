@@ -25,7 +25,7 @@ class_name = "RoomIndexObject"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["RoomObject", "RoomIndexObject"]
+new_sqlite_classes = ["RoomObject", "RoomIndexObject"]
 
 [[r2_buckets]]
 binding = "FILE_BUCKET"

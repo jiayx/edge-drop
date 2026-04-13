@@ -5,6 +5,7 @@ export function renderRoomPage(): string {
         <div id="room-key" class="room-key-display" title="Click to copy"></div>
         <div id="countdown" class="countdown"></div>
         <span class="header-gap"></span>
+        <a href="/" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;text-decoration:none">← Home</a>
         <button id="extend-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">+24h</button>
       </header>
 
@@ -30,14 +31,14 @@ export function renderRoomPage(): string {
       <div class="upload-progress" id="upload-progress"></div>
 
       <footer class="input-bar">
-        <button id="attach-btn" class="btn btn-secondary" title="Attach file" style="padding:0.55rem 0.8rem;font-size:1.1rem">📎</button>
+        <button id="attach-btn" class="btn btn-secondary" title="Attach file" style="align-self:stretch;padding:0 0.8rem;font-size:1.1rem">📎</button>
         <textarea
           id="message-input"
           class="message-input"
           rows="1"
           placeholder="Type a message... (Enter to send)"
         ></textarea>
-        <button id="send-btn" class="btn btn-primary" style="padding:0.55rem 1rem">Send</button>
+        <button id="send-btn" class="btn btn-primary" style="align-self:stretch;padding:0 1rem">Send</button>
         <input id="file-picker" type="file" multiple style="display:none" accept="image/*,audio/*,video/*,text/*,application/pdf,application/zip,application/json,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
       </footer>
     </div>

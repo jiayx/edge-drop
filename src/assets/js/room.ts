@@ -79,20 +79,9 @@ void (async () => {
 
   data.messages.forEach(renderMessage);
   scrollToBottom();
+  registerScrollObserver();
 
   connectWebSocket();
-
-  if (topLoader) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !loadingHistory) {
-          void loadMoreHistory();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(topLoader);
-  }
 })();
 
 // ── WebSocket ─────────────────────────────────────────────────────────────
@@ -115,8 +104,11 @@ function handleServerMessage(msg: ServerMessage): void {
     case "msg:system": {
       const m = msg.message;
       if (!document.querySelector(`[data-msg-id="${m.id}"]`)) {
+        const shouldStickToBottom = isNearBottom();
         renderMessage(m);
-        scrollToBottom();
+        if (shouldStickToBottom) {
+          scrollToBottom();
+        }
         if (m.seq > lastSeq) lastSeq = m.seq;
       }
       break;
@@ -173,7 +165,7 @@ function handleServerMessage(msg: ServerMessage): void {
       if (msg.messages.length) prependMessages(msg.messages);
       if (msg.nextSeq > lastSeq) lastSeq = msg.nextSeq;
       hasMore = msg.hasMore;
-      loadingHistory = false;
+      requestAnimationFrame(() => { loadingHistory = false; });
       break;
   }
 }
@@ -491,6 +483,12 @@ function scrollToBottom(): void {
   if (messageList) messageList.scrollTop = messageList.scrollHeight;
 }
 
+function isNearBottom(threshold = 80): boolean {
+  if (!messageList) return true;
+  const distance = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight;
+  return distance <= threshold;
+}
+
 function flash(el: HTMLElement, text: string): void {
   const orig = el.textContent ?? "";
   el.textContent = text;
@@ -503,4 +501,17 @@ function appendSystemNotice(text: string): void {
   el.innerHTML = `<span class="system-text">${escHtml(text)}</span>`;
   messageList?.appendChild(el);
   scrollToBottom();
+}
+
+function registerScrollObserver(): void {
+  if (!topLoader) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && hasMore && !loadingHistory) {
+        void loadMoreHistory();
+      }
+    },
+    { threshold: 0.1 }
+  );
+  observer.observe(topLoader);
 }

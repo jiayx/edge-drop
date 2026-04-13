@@ -11,10 +11,6 @@ function param(c: Context<{ Bindings: Env }>, name: string): string {
 const BLOCKED_EXTENSIONS = new Set([".exe", ".bat", ".sh", ".cmd", ".msi", ".dll", ".scr", ".com", ".pif"]);
 const MAX_OBJECT_KEY_LEN = 512;
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._\-\s]/g, "_").slice(0, 200);
-}
-
 function getExtension(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   return dot >= 0 ? fileName.slice(dot).toLowerCase() : "";
@@ -24,10 +20,25 @@ function sanitizeHeaderValue(value: string): string {
   return value.replace(/[\r\n"]/g, "_");
 }
 
-function buildDownloadFileName(objectKey: string): string {
-  const raw = objectKey.split("/").pop() ?? "file";
-  const dash = raw.indexOf("-");
-  return dash >= 0 ? raw.slice(dash + 1) : raw;
+function toAsciiFileName(value: string): string {
+  const sanitized = sanitizeHeaderValue(value);
+  const ascii = sanitized.replace(/[^\x20-\x7E]/g, "_");
+  const dot = ascii.lastIndexOf(".");
+  const ext = dot > 0 ? ascii.slice(dot) : "";
+  const base = dot > 0 ? ascii.slice(0, dot) : ascii;
+  const normalizedBase = base.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+
+  if (!normalizedBase) {
+    return `file${ext}`;
+  }
+
+  return `${normalizedBase}${ext}`;
+}
+
+function buildContentDisposition(disposition: "inline" | "attachment", fileName: string): string {
+  const asciiFallback = toAsciiFileName(fileName);
+  const utf8Name = encodeURIComponent(sanitizeHeaderValue(fileName));
+  return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${utf8Name}`;
 }
 
 // POST /api/v1/rooms/:key/files
@@ -73,10 +84,10 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
     return c.json({ error: "File extension not allowed" }, 400);
   }
 
-  // Build object key using timestamp for ordering
+  // Build an opaque object key. Keep the extension for content sniffing/debuggability,
+  // but avoid embedding the original file name in storage paths or URLs.
   const ts = Date.now();
-  const safe = sanitizeFileName(fileName);
-  const objectKey = `rooms/${key}/${ts}-${safe}`;
+  const objectKey = `rooms/${key}/${ts}-${crypto.randomUUID()}${ext}`;
 
   if (objectKey.length > MAX_OBJECT_KEY_LEN) {
     return c.json({ error: "File name too long" }, 400);
@@ -84,7 +95,7 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
 
   await putObject(env, objectKey, c.req.raw.body, {
     contentType: mimeType,
-    contentDisposition: `inline; filename="${sanitizeHeaderValue(safe)}"`,
+    contentDisposition: buildContentDisposition("inline", fileName),
     customMetadata: {
       originalFileName: fileName,
     },
@@ -146,13 +157,13 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
   const totalSize = head.size;
   const range = parseRange(rangeHeader, totalSize);
 
-  const fileName = head.customMetadata?.originalFileName || buildDownloadFileName(objectKey);
+  const fileName = head.customMetadata?.originalFileName || "file";
   const headers = new Headers();
   head.writeHttpMetadata(headers);
   headers.set("etag", head.httpEtag);
   headers.set("accept-ranges", "bytes");
   headers.set("cache-control", "private, max-age=60");
-  headers.set("content-disposition", `inline; filename="${sanitizeHeaderValue(fileName)}"`);
+  headers.set("content-disposition", buildContentDisposition("inline", fileName));
 
   if (range) {
     const object = await env.FILE_BUCKET.get(objectKey, {
