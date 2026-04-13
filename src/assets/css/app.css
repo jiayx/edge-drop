@@ -201,7 +201,7 @@ a:hover { text-decoration: underline; }
 
 #top-loader { height: 4px; background: transparent; }
 
-.message { display: flex; flex-direction: column; max-width: 75%; }
+.message { display: flex; flex-direction: column; max-width: 75%; align-self: flex-start; }
 .message.own { align-self: flex-end; align-items: flex-end; }
 .message.system { align-self: center; max-width: 90%; }
 
@@ -224,9 +224,12 @@ a:hover { text-decoration: underline; }
 
 .bubble-img { max-width: 280px; max-height: 280px; border-radius: var(--radius-sm); display: block; object-fit: contain; }
 
+.bubble-image { display: flex; flex-direction: column; gap: 0.4rem; width: fit-content; }
+
+.bubble-audio-wrap { display: flex; flex-direction: column; gap: 0.4rem; width: min(320px, 65vw); min-width: 220px; }
+
 .bubble-audio {
-  width: min(320px, 65vw);
-  min-width: 220px;
+  width: 100%;
 }
 
 .bubble-audio audio {
@@ -245,6 +248,17 @@ a:hover { text-decoration: underline; }
 .file-icon { font-size: 1.1rem; }
 .file-name { font-weight: 500; word-break: break-all; }
 .file-size { color: var(--text-dim); font-size: 0.75rem; white-space: nowrap; }
+
+.bubble-video { display: flex; flex-direction: column; gap: 0.4rem; }
+.bubble-video-player { max-width: min(360px, 75vw); border-radius: var(--radius-sm); display: block; background: #000; }
+.bubble-video-download {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  font-size: 0.82rem; color: var(--text); text-decoration: none;
+  width: fit-content;
+}
+.bubble-video-download:hover { background: var(--border); }
 
 .system-text {
   font-size: 0.78rem; color: var(--text-dim); font-style: italic;

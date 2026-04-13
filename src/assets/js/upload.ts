@@ -77,3 +77,7 @@ export function isImageMime(mime: string): boolean {
 export function isAudioMime(mime: string): boolean {
   return mime.startsWith("audio/");
 }
+
+export function isVideoMime(mime: string): boolean {
+  return mime.startsWith("video/");
+}

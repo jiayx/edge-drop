@@ -201,10 +201,37 @@ function buildMessageEl(msg: Message): HTMLElement {
     contentHtml = `<p class="bubble-text">${escHtml(msg.content).replace(/\n/g, "<br>")}</p>`;
   } else if (msg.type === "image") {
     const url = fileUrl(msg.content);
-    contentHtml = `<a href="${url}" target="_blank"><img class="bubble-img" src="${url}" alt="${escHtml(msg.fileName ?? "image")}" loading="lazy"></a>`;
+    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
+    contentHtml = `<div class="bubble-image">
+      <a href="${url}" target="_blank"><img class="bubble-img" src="${url}" alt="${escHtml(msg.fileName ?? "image")}" loading="lazy"></a>
+      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "image")}">
+        <span class="file-icon">⬇</span>
+        <span class="file-name">${escHtml(msg.fileName ?? "image")}</span>
+        <span class="file-size">${size}</span>
+      </a>
+    </div>`;
   } else if (msg.type === "audio") {
     const url = fileUrl(msg.content);
-    contentHtml = `<div class="bubble-audio" data-src="${url}"></div>`;
+    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
+    contentHtml = `<div class="bubble-audio-wrap">
+      <div class="bubble-audio" data-src="${url}"></div>
+      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "audio")}">
+        <span class="file-icon">⬇</span>
+        <span class="file-name">${escHtml(msg.fileName ?? "audio")}</span>
+        <span class="file-size">${size}</span>
+      </a>
+    </div>`;
+  } else if (msg.type === "video") {
+    const url = fileUrl(msg.content);
+    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
+    contentHtml = `<div class="bubble-video">
+      <video class="bubble-video-player" src="${url}" controls preload="metadata"></video>
+      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "video")}">
+        <span class="file-icon">⬇</span>
+        <span class="file-name">${escHtml(msg.fileName ?? "video")}</span>
+        <span class="file-size">${size}</span>
+      </a>
+    </div>`;
   } else {
     const url = fileUrl(msg.content);
     const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";

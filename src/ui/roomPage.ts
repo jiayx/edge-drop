@@ -16,7 +16,7 @@ export function renderRoomPage(): string {
         </div>
 
         <div class="sidebar-section">
-          <h3>Online - <span id="online-count" class="online-badge">0</span></h3>
+          <h3>Online <span id="online-count" class="online-badge">0</span></h3>
           <div id="user-list" class="user-list"></div>
         </div>
       </aside>

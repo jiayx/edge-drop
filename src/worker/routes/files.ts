@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { isValidRoomKey } from "../lib/roomKey";
 import { isExpired } from "../lib/expiry";
-import { putObject, getObject, deleteObjects } from "../lib/r2";
+import { putObject, deleteObjects } from "../lib/r2";
 import { lookupRoom } from "./rooms";
 
 function param(c: Context<{ Bindings: Env }>, name: string): string {
@@ -93,6 +93,30 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
   return c.json({ objectKey });
 }
 
+// Parse a "bytes=start-end" Range header. Returns null if absent or unparseable.
+function parseRange(rangeHeader: string | null, totalSize: number): { start: number; end: number } | null {
+  if (!rangeHeader) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+  if (!m) return null;
+  const rawStart = m[1] ?? "";
+  const rawEnd = m[2] ?? "";
+  let start: number;
+  let end: number;
+  if (rawStart === "" && rawEnd !== "") {
+    // suffix range: bytes=-500  →  last 500 bytes
+    const suffix = parseInt(rawEnd, 10);
+    start = Math.max(0, totalSize - suffix);
+    end = totalSize - 1;
+  } else {
+    start = rawStart !== "" ? parseInt(rawStart, 10) : 0;
+    end = rawEnd !== "" ? parseInt(rawEnd, 10) : totalSize - 1;
+  }
+  if (isNaN(start) || isNaN(end) || start < 0 || start >= totalSize) return null;
+  end = Math.min(end, totalSize - 1);
+  if (start > end) return null;
+  return { start, end };
+}
+
 // GET /api/v1/rooms/:key/files/:objectKey — stream file from R2 through Worker
 export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
@@ -113,20 +137,41 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
     return c.json({ error: "Forbidden" }, 403);
   }
 
-  const object = await getObject(env, objectKey);
-  if (!object) {
-    return c.json({ error: "File not found" }, 404);
-  }
+  const rangeHeader = c.req.header("Range") ?? null;
 
-  const fileName = object.customMetadata?.originalFileName || buildDownloadFileName(objectKey);
+  // First fetch metadata to know the total size, then fetch with range if needed.
+  const head = await env.FILE_BUCKET.head(objectKey);
+  if (!head) return c.json({ error: "File not found" }, 404);
+
+  const totalSize = head.size;
+  const range = parseRange(rangeHeader, totalSize);
+
+  const fileName = head.customMetadata?.originalFileName || buildDownloadFileName(objectKey);
   const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
-  headers.set("content-length", String(object.size));
+  head.writeHttpMetadata(headers);
+  headers.set("etag", head.httpEtag);
+  headers.set("accept-ranges", "bytes");
   headers.set("cache-control", "private, max-age=60");
   headers.set("content-disposition", `inline; filename="${sanitizeHeaderValue(fileName)}"`);
 
-  return new Response(object.body, { status: 200, headers });
+  if (range) {
+    const object = await env.FILE_BUCKET.get(objectKey, {
+      range: {
+        offset: range.start,
+        length: range.end - range.start + 1,
+      },
+    });
+    if (!object) return c.json({ error: "File not found" }, 404);
+    const chunkSize = range.end - range.start + 1;
+    headers.set("content-range", `bytes ${range.start}-${range.end}/${totalSize}`);
+    headers.set("content-length", String(chunkSize));
+    return new Response((object as R2ObjectBody).body, { status: 206, headers });
+  }
+
+  const object = await env.FILE_BUCKET.get(objectKey);
+  if (!object) return c.json({ error: "File not found" }, 404);
+  headers.set("content-length", String(totalSize));
+  return new Response((object as R2ObjectBody).body, { status: 200, headers });
 }
 
 // DELETE /api/v1/rooms/:key/files/:objectKey

@@ -1,4 +1,4 @@
-export type MessageType = "text" | "image" | "audio" | "file" | "system";
+export type MessageType = "text" | "image" | "audio" | "video" | "file" | "system";
 export type RoomStatus = "active" | "expired" | "cleaning";
 
 export interface RoomMeta {

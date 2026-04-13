@@ -146,6 +146,8 @@ export class RoomObject {
           ? "image"
           : mimeType.startsWith("audio/")
           ? "audio"
+          : mimeType.startsWith("video/")
+          ? "video"
           : "file";
         await this.persistAndBroadcastMessage(
           userId,
