@@ -88,7 +88,7 @@ void (async () => {
   startCountdown();
   updatePresence(data.onlineCount, data.onlineUsers);
 
-  data.messages.forEach(renderMessage);
+  data.messages.forEach((msg) => { renderMessage(msg, true); });
   scrollToBottom();
   registerScrollObserver();
 
@@ -115,8 +115,9 @@ function handleServerMessage(msg: ServerMessage): void {
     case "msg:system": {
       const m = msg.message;
       if (!document.querySelector(`[data-msg-id="${m.id}"]`)) {
-        renderMessage(m);
-        if (stickToBottom) {
+        const keepBottomAligned = stickToBottom;
+        renderMessage(m, keepBottomAligned);
+        if (keepBottomAligned) {
           scrollToBottom();
         }
         if (m.seq > lastSeq) lastSeq = m.seq;
@@ -262,8 +263,12 @@ function buildMessageEl(msg: Message): HTMLElement {
   return el;
 }
 
-function renderMessage(msg: Message): void {
-  messageList?.appendChild(buildMessageEl(msg));
+function renderMessage(msg: Message, keepBottomAligned = false): void {
+  const el = buildMessageEl(msg);
+  messageList?.appendChild(el);
+  if (keepBottomAligned) {
+    watchVisualMediaLayout(el);
+  }
 }
 
 function prependMessages(messages: Message[]): void {
@@ -541,6 +546,38 @@ function appendSystemNotice(text: string): void {
   el.innerHTML = `<span class="system-text">${escHtml(text)}</span>`;
   messageList?.appendChild(el);
   scrollToBottom();
+}
+
+function watchVisualMediaLayout(root: HTMLElement): void {
+  const images = root.querySelectorAll<HTMLImageElement>("img");
+  const videos = root.querySelectorAll<HTMLVideoElement>("video");
+  if (!images.length && !videos.length) return;
+
+  const correctBottom = (): void => {
+    if (!stickToBottom) return;
+    scheduleBottomCorrection(2);
+  };
+
+  images.forEach((img) => {
+    img.addEventListener("load", correctBottom, { once: true });
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(correctBottom);
+      observer.observe(img);
+      setTimeout(() => observer.disconnect(), 5000);
+    }
+  });
+
+  videos.forEach((video) => {
+    video.addEventListener("loadedmetadata", correctBottom, { once: true });
+    video.addEventListener("loadeddata", correctBottom, { once: true });
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(correctBottom);
+      observer.observe(video);
+      setTimeout(() => observer.disconnect(), 5000);
+    }
+  });
 }
 
 function registerScrollObserver(): void {
