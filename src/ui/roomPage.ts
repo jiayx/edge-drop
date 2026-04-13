@@ -7,6 +7,7 @@ export function renderRoomPage(): string {
         <span class="header-gap"></span>
         <a href="/" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;text-decoration:none">← Home</a>
         <button id="extend-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">+24h</button>
+        <button id="theme-toggle-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">Theme</button>
       </header>
 
       <aside class="sidebar">

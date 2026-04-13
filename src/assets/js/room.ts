@@ -44,6 +44,12 @@ const uploadProgressEl = document.getElementById("upload-progress");
 const reconnectBanner = document.getElementById("reconnect-banner");
 const topLoader = document.getElementById("top-loader");
 const mobileViewport = window.matchMedia("(max-width: 640px)");
+const themeToggleBtn = document.getElementById("theme-toggle-btn") as HTMLButtonElement | null;
+const themeViewport = window.matchMedia("(prefers-color-scheme: dark)");
+
+const THEME_STORAGE_KEY = "edge-drop:theme";
+type ThemeMode = "light" | "dark";
+type ThemePreference = "system" | ThemeMode;
 
 messageList?.addEventListener(
   "scroll",
@@ -66,7 +72,10 @@ interface JoinResponse {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 void (async () => {
+  syncTheme();
   syncMessageInputPlaceholder();
+
+  themeViewport.addEventListener("change", syncTheme);
   mobileViewport.addEventListener("change", syncMessageInputPlaceholder);
 
   if (roomKeyEl) {
@@ -100,6 +109,67 @@ void (async () => {
 
   connectWebSocket();
 })();
+
+themeToggleBtn?.addEventListener("click", () => {
+  cycleThemePreference();
+});
+
+function getStoredThemePreference(): ThemePreference {
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  if (storedTheme === "light" || storedTheme === "dark") {
+    return storedTheme;
+  }
+  return "system";
+}
+
+function getAppliedTheme(preference: ThemePreference): ThemeMode {
+  if (preference === "light" || preference === "dark") {
+    return preference;
+  }
+  return themeViewport.matches ? "dark" : "light";
+}
+
+function getNextThemePreference(preference: ThemePreference): ThemePreference {
+  switch (preference) {
+    case "system":
+      return "dark";
+    case "dark":
+      return "light";
+    default:
+      return "system";
+  }
+}
+
+function setThemePreference(preference: ThemePreference): void {
+  if (preference === "system") {
+    localStorage.removeItem(THEME_STORAGE_KEY);
+  } else {
+    localStorage.setItem(THEME_STORAGE_KEY, preference);
+  }
+  syncTheme();
+}
+
+function cycleThemePreference(): ThemePreference {
+  const nextTheme = getNextThemePreference(getStoredThemePreference());
+  setThemePreference(nextTheme);
+  return nextTheme;
+}
+
+function syncTheme(): void {
+  const preference = getStoredThemePreference();
+  const theme = getAppliedTheme(preference);
+  if (preference === "system") {
+    delete document.documentElement.dataset.theme;
+  } else {
+    document.documentElement.dataset.theme = theme;
+  }
+  if (!themeToggleBtn) return;
+  themeToggleBtn.textContent =
+    preference === "system" ? "◐" : theme === "dark" ? "☾" : "☀";
+  themeToggleBtn.title = `Theme: ${
+    preference === "system" ? `System (${theme})` : theme
+  }. Click to switch.`;
+}
 
 function syncMessageInputPlaceholder(): void {
   if (!messageInput) return;
@@ -352,8 +422,18 @@ function runInputCommand(text: string): boolean {
 
   switch (command) {
     case "/help":
-      appendLocalSystemNotice("Available commands: /name <new name>, /help");
+      appendLocalSystemNotice("Available commands: /name <new name>, /theme, /help");
       return true;
+    case "/theme": {
+      const nextTheme = cycleThemePreference();
+      const appliedTheme = getAppliedTheme(nextTheme);
+      appendLocalSystemNotice(
+        nextTheme === "system"
+          ? `Theme set to system (${appliedTheme})`
+          : `Theme set to ${appliedTheme}`
+      );
+      return true;
+    }
     case "/name":
       if (!applyRename(arg)) {
         appendLocalSystemNotice("Usage: /name <new name>");
