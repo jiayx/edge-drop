@@ -224,12 +224,9 @@ function handleServerMessage(msg: ServerMessage): void {
       break;
 
     case "user:rename": {
-      const nameEl = document.querySelector<HTMLElement>(
-        `[data-user-id="${msg.userId}"] .user-name`
-      );
-      if (nameEl) {
-        nameEl.textContent = formatUserListName(msg.userId, msg.newName);
-      }
+      document
+        .querySelectorAll<HTMLElement>(`[data-user-id="${msg.userId}"] .user-name`)
+        .forEach((el) => { el.textContent = formatUserListName(msg.userId, msg.newName); });
       document
         .querySelectorAll<HTMLElement>(`[data-sender-id="${msg.userId}"] .sender-name`)
         .forEach((el) => { el.textContent = msg.newName; });
@@ -568,6 +565,7 @@ function applyRename(name: string): boolean {
   updateIdentityName(roomKey, newName);
   if (selfNameEl) selfNameEl.textContent = newName;
   ws?.send({ type: "user:rename", newName });
+  appendLocalSystemNotice(`Name changed to ${newName}`);
   return true;
 }
 
