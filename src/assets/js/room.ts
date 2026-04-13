@@ -43,6 +43,7 @@ const filePickerInput = document.getElementById("file-picker") as HTMLInputEleme
 const uploadProgressEl = document.getElementById("upload-progress");
 const reconnectBanner = document.getElementById("reconnect-banner");
 const topLoader = document.getElementById("top-loader");
+const mobileViewport = window.matchMedia("(max-width: 640px)");
 
 messageList?.addEventListener(
   "scroll",
@@ -65,6 +66,9 @@ interface JoinResponse {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 void (async () => {
+  syncMessageInputPlaceholder();
+  mobileViewport.addEventListener("change", syncMessageInputPlaceholder);
+
   if (roomKeyEl) {
     roomKeyEl.textContent = roomKey;
     roomKeyEl.addEventListener("click", () => {
@@ -96,6 +100,13 @@ void (async () => {
 
   connectWebSocket();
 })();
+
+function syncMessageInputPlaceholder(): void {
+  if (!messageInput) return;
+  messageInput.placeholder = mobileViewport.matches
+    ? "Type a message..."
+    : "Type a message... (Enter to send)";
+}
 
 // ── WebSocket ─────────────────────────────────────────────────────────────
 function connectWebSocket(): void {
