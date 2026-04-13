@@ -319,6 +319,10 @@ async function loadMoreHistory(): Promise<void> {
 function sendText(): void {
   const text = messageInput?.value.trim();
   if (!text) return;
+  if (runInputCommand(text)) {
+    if (messageInput) messageInput.value = "";
+    return;
+  }
   const tempId = crypto.randomUUID();
 
   const optimistic: Message = {
@@ -337,6 +341,28 @@ function sendText(): void {
 
   ws?.send({ type: "msg:text", content: text, tempId });
   if (messageInput) messageInput.value = "";
+}
+
+function runInputCommand(text: string): boolean {
+  if (!text.startsWith("/")) return false;
+
+  const [rawCommand = "", ...rest] = text.split(/\s+/);
+  const command = rawCommand.toLowerCase();
+  const arg = rest.join(" ").trim();
+
+  switch (command) {
+    case "/help":
+      appendLocalSystemNotice("Available commands: /name <new name>, /help");
+      return true;
+    case "/name":
+      if (!applyRename(arg)) {
+        appendLocalSystemNotice("Usage: /name <new name>");
+      }
+      return true;
+    default:
+      appendLocalSystemNotice(`Unknown command: ${rawCommand}`);
+      return true;
+  }
 }
 
 sendBtn?.addEventListener("click", sendText);
@@ -451,14 +477,18 @@ selfNameInput?.addEventListener("keydown", (e: KeyboardEvent) => {
 });
 
 function commitRename(): void {
-  const newName = selfNameInput?.value.trim().slice(0, 32);
-  if (newName && newName !== identity.displayName) {
-    identity.displayName = newName;
-    updateIdentityName(roomKey, newName);
-    if (selfNameEl) selfNameEl.textContent = newName;
-    ws?.send({ type: "user:rename", newName });
-  }
+  applyRename(selfNameInput?.value ?? "");
   cancelRename();
+}
+
+function applyRename(name: string): boolean {
+  const newName = name.trim().slice(0, 32);
+  if (!newName || newName === identity.displayName) return false;
+  identity.displayName = newName;
+  updateIdentityName(roomKey, newName);
+  if (selfNameEl) selfNameEl.textContent = newName;
+  ws?.send({ type: "user:rename", newName });
+  return true;
 }
 
 function cancelRename(): void {
@@ -570,6 +600,10 @@ function appendSystemNotice(text: string): void {
   el.innerHTML = `<span class="system-text">${escHtml(text)}</span>`;
   messageList?.appendChild(el);
   scrollToBottom();
+}
+
+function appendLocalSystemNotice(text: string): void {
+  appendSystemNotice(text);
 }
 
 function watchVisualMediaLayout(root: HTMLElement): void {
