@@ -21,6 +21,9 @@ let loadingHistory = false;
 let ws: RoomWebSocket | null = null;
 let expiresAt = 0;
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
+let stickToBottom = true;
+let bottomCorrectionFrame = 0;
+let bottomCorrectionPasses = 0;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const roomKeyEl = document.getElementById("room-key");
@@ -38,6 +41,14 @@ const filePickerInput = document.getElementById("file-picker") as HTMLInputEleme
 const uploadProgressEl = document.getElementById("upload-progress");
 const reconnectBanner = document.getElementById("reconnect-banner");
 const topLoader = document.getElementById("top-loader");
+
+messageList?.addEventListener(
+  "scroll",
+  () => {
+    stickToBottom = isNearBottom();
+  },
+  { passive: true }
+);
 
 // ── API types ─────────────────────────────────────────────────────────────
 interface JoinResponse {
@@ -77,7 +88,7 @@ void (async () => {
   startCountdown();
   updatePresence(data.onlineCount, data.onlineUsers);
 
-  data.messages.forEach(renderMessage);
+  data.messages.forEach((msg) => { renderMessage(msg, true); });
   scrollToBottom();
   registerScrollObserver();
 
@@ -104,8 +115,8 @@ function handleServerMessage(msg: ServerMessage): void {
     case "msg:system": {
       const m = msg.message;
       if (!document.querySelector(`[data-msg-id="${m.id}"]`)) {
-        const shouldStickToBottom = isNearBottom();
-        renderMessage(m);
+        const shouldStickToBottom = stickToBottom;
+        renderMessage(m, shouldStickToBottom);
         if (shouldStickToBottom) {
           scrollToBottom();
         }
@@ -252,8 +263,12 @@ function buildMessageEl(msg: Message): HTMLElement {
   return el;
 }
 
-function renderMessage(msg: Message): void {
-  messageList?.appendChild(buildMessageEl(msg));
+function renderMessage(msg: Message, keepBottomAligned = false): void {
+  const el = buildMessageEl(msg);
+  messageList?.appendChild(el);
+  if (keepBottomAligned) {
+    watchMediaLayout(el);
+  }
 }
 
 function prependMessages(messages: Message[]): void {
@@ -480,7 +495,37 @@ function fileUrl(objectKey: string): string {
 }
 
 function scrollToBottom(): void {
-  if (messageList) messageList.scrollTop = messageList.scrollHeight;
+  if (!messageList) return;
+  messageList.scrollTop = messageList.scrollHeight;
+  stickToBottom = true;
+  scheduleBottomCorrection();
+}
+
+function scheduleBottomCorrection(passes = 1): void {
+  if (!messageList || !stickToBottom) {
+    bottomCorrectionPasses = 0;
+    return;
+  }
+
+  bottomCorrectionPasses = Math.max(bottomCorrectionPasses, passes);
+  if (bottomCorrectionFrame) return;
+
+  const run = (): void => {
+    bottomCorrectionFrame = 0;
+    if (!messageList || !stickToBottom) {
+      bottomCorrectionPasses = 0;
+      return;
+    }
+
+    messageList.scrollTop = messageList.scrollHeight;
+    bottomCorrectionPasses -= 1;
+
+    if (bottomCorrectionPasses > 0) {
+      bottomCorrectionFrame = requestAnimationFrame(run);
+    }
+  };
+
+  bottomCorrectionFrame = requestAnimationFrame(run);
 }
 
 function isNearBottom(threshold = 80): boolean {
@@ -501,6 +546,45 @@ function appendSystemNotice(text: string): void {
   el.innerHTML = `<span class="system-text">${escHtml(text)}</span>`;
   messageList?.appendChild(el);
   scrollToBottom();
+}
+
+function watchMediaLayout(root: HTMLElement): void {
+  if (!root.querySelector("img, video, audio")) return;
+
+  const correctBottom = (): void => {
+    scheduleBottomCorrection(2);
+  };
+
+  root.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+    if (img.complete) {
+      correctBottom();
+      return;
+    }
+    img.addEventListener("load", correctBottom, { once: true });
+  });
+
+  root.querySelectorAll<HTMLVideoElement>("video").forEach((video) => {
+    if (video.readyState >= 1) {
+      correctBottom();
+      return;
+    }
+    video.addEventListener("loadedmetadata", correctBottom, { once: true });
+    video.addEventListener("loadeddata", correctBottom, { once: true });
+  });
+
+  root.querySelectorAll<HTMLAudioElement>("audio").forEach((audio) => {
+    if (audio.readyState >= 1) {
+      correctBottom();
+      return;
+    }
+    audio.addEventListener("loadedmetadata", correctBottom, { once: true });
+  });
+
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(correctBottom);
+    observer.observe(root);
+    setTimeout(() => observer.disconnect(), 5000);
+  }
 }
 
 function registerScrollObserver(): void {

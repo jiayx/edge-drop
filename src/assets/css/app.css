@@ -196,7 +196,6 @@ a:hover { text-decoration: underline; }
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  scroll-behavior: smooth;
 }
 
 #top-loader { height: 4px; background: transparent; }
