@@ -31,6 +31,8 @@ const countdownEl = document.getElementById("countdown");
 const extendBtn = document.getElementById("extend-btn") as HTMLButtonElement | null;
 const onlineCountEl = document.getElementById("online-count");
 const userListEl = document.getElementById("user-list");
+const mobileOnlineCountEl = document.getElementById("mobile-online-count");
+const mobileUserListEl = document.getElementById("mobile-user-list");
 const selfNameEl = document.getElementById("self-name");
 const selfNameInput = document.getElementById("self-name-input") as HTMLInputElement | null;
 const messageList = document.getElementById("message-list");
@@ -391,10 +393,21 @@ function createProgressItem(fileName: string): ProgressItem {
 // ── Presence ──────────────────────────────────────────────────────────────
 function updatePresence(count: number, users: UserRecord[]): void {
   if (onlineCountEl) onlineCountEl.textContent = String(count);
+  if (mobileOnlineCountEl) mobileOnlineCountEl.textContent = String(count);
   if (userListEl) {
     userListEl.innerHTML = users
       .map(
         (u) => `<div class="user-item" data-user-id="${u.userId}">
+        <span class="user-avatar">${u.displayName.charAt(0).toUpperCase()}</span>
+        <span class="user-name">${escHtml(formatUserListName(u.userId, u.displayName))}</span>
+      </div>`
+      )
+      .join("");
+  }
+  if (mobileUserListEl) {
+    mobileUserListEl.innerHTML = users
+      .map(
+        (u) => `<div class="mobile-user-item" data-user-id="${u.userId}">
         <span class="user-avatar">${u.displayName.charAt(0).toUpperCase()}</span>
         <span class="user-name">${escHtml(formatUserListName(u.userId, u.displayName))}</span>
       </div>`

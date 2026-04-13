@@ -17,10 +17,22 @@ export function renderRoomPage(): string {
         </div>
 
         <div class="sidebar-section">
-          <h3>Online <span id="online-count" class="online-badge">0</span></h3>
+          <div class="sidebar-presence-header">
+            <span class="sidebar-label">Online</span>
+            <span id="online-count" class="online-badge">0</span>
+          </div>
           <div id="user-list" class="user-list"></div>
         </div>
       </aside>
+
+      <section class="mobile-presence">
+        <div class="mobile-presence-header">
+          <span class="mobile-online-label">Online</span>
+          <span id="mobile-online-count" class="mobile-online-badge">0</span>
+          <span class="mobile-presence-divider" aria-hidden="true"></span>
+          <div id="mobile-user-list" class="mobile-user-list"></div>
+        </div>
+      </section>
 
       <main class="messages-area" id="message-list">
         <div id="top-loader"></div>
