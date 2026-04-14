@@ -551,6 +551,50 @@ a:hover {
 .bubble-file:hover {
   background: var(--border);
 }
+
+.pending-file-transfer {
+  pointer-events: none;
+}
+
+.pending-upload-status {
+  margin-top: 0.55rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.pending-upload-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pending-upload-header {
+  display: flex;
+  align-items: center;
+}
+
+.pending-upload-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.pending-upload-track {
+  width: min(240px, 60vw);
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.pending-upload-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
 .file-icon {
   font-size: 1.1rem;
 }
@@ -589,6 +633,64 @@ a:hover {
 }
 .bubble-video-download:hover {
   background: var(--border);
+}
+
+.pending .bubble {
+  opacity: 0.78;
+}
+
+.message.upload-failed .bubble {
+  opacity: 1;
+}
+
+.message.upload-failed .pending-upload-label {
+  color: var(--danger);
+}
+
+.message.pending {
+  position: relative;
+  padding-left: 4.25rem;
+}
+
+.pending-retry-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.22rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.74rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pending-retry-btn:hover {
+  background: var(--border);
+}
+
+.pending-cancel-btn {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface2) 72%, transparent);
+  color: color-mix(in srgb, var(--text) 82%, var(--text-dim));
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pending-cancel-btn:hover {
+  background: color-mix(in srgb, var(--surface2) 92%, var(--border));
+  color: var(--text);
 }
 
 .system-text {
@@ -630,42 +732,6 @@ a:hover {
 }
 .message-input::placeholder {
   color: var(--text-dim);
-}
-
-/* Upload progress */
-.upload-progress {
-  position: fixed;
-  bottom: 5rem;
-  right: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  z-index: 100;
-}
-
-.upload-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  min-width: 200px;
-}
-.upload-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.upload-pct {
-  color: var(--accent);
-  font-weight: 600;
-}
-.upload-error .upload-pct {
-  color: var(--danger);
 }
 
 /* Reconnect banner */

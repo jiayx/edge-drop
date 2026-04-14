@@ -19,12 +19,25 @@ export async function uploadFile(opts: {
   roomKey: string;
   file: File;
   onProgress?: (pct: number) => void;
+  signal?: AbortSignal;
 }): Promise<UploadResult> {
-  const { roomKey, file, onProgress } = opts;
+  const { roomKey, file, onProgress, signal } = opts;
   const mimeType = file.type || "application/octet-stream";
 
   const objectKey = await new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const abortUpload = (): void => {
+      xhr.abort();
+      reject(new DOMException("Upload canceled", "AbortError"));
+    };
+
+    if (signal?.aborted) {
+      abortUpload();
+      return;
+    }
+
+    signal?.addEventListener("abort", abortUpload, { once: true });
+
     xhr.open("POST", `/api/v1/rooms/${roomKey}/files`);
     xhr.setRequestHeader("Content-Type", mimeType);
     xhr.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
@@ -57,6 +70,7 @@ export async function uploadFile(opts: {
 
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    xhr.onabort = () => reject(new DOMException("Upload canceled", "AbortError"));
 
     xhr.send(file);
   });

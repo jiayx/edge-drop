@@ -40,9 +40,6 @@ export function renderRoomPage(): string {
       </main>
 
       <div class="reconnect-banner" id="reconnect-banner">Reconnecting...</div>
-
-      <div class="upload-progress" id="upload-progress"></div>
-
       <footer class="input-bar">
         <button id="attach-btn" class="btn btn-secondary" title="Attach file" style="align-self:stretch;padding:0 0.8rem;font-size:1.1rem">📎</button>
         <textarea

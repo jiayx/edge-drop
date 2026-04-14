@@ -2,9 +2,9 @@
 
 import { getOrCreateIdentity, updateIdentityName, type Identity } from "./identity";
 import { RoomWebSocket } from "./ws";
-import { uploadFile, formatFileSize } from "./upload";
+import { uploadFile, formatFileSize, isAudioMime, isImageMime, isVideoMime } from "./upload";
 import { createAudioPlayer } from "./audio";
-import type { ServerMessage, Message, UserRecord } from "../../worker/types";
+import type { ServerMessage, Message, UserRecord, ClientMessage } from "../../worker/types";
 import { lobbyPath, parseAppRoute } from "../../router";
 
 // ── Init ──────────────────────────────────────────────────────────────────
@@ -24,6 +24,23 @@ let countdownInterval: ReturnType<typeof setInterval> | null = null;
 let stickToBottom = true;
 let bottomCorrectionFrame = 0;
 let bottomCorrectionPasses = 0;
+let isWsConnected = false;
+const MAX_AUTO_RETRY_COUNT = 3;
+type SendableClientMessage = Extract<ClientMessage, { type: "msg:text" | "msg:file" }>;
+type LocalOutgoingStatus = "uploading" | "upload-failed" | "pending";
+type PendingOutgoingMessage = {
+  tempId: string;
+  kind: "text" | "file";
+  optimisticMessage: Message;
+  payload?: SendableClientMessage;
+  autoRetryCount: number;
+  status: LocalOutgoingStatus;
+  file?: File;
+  uploadProgress?: number;
+  errorMessage?: string;
+  uploadAbortController?: AbortController;
+};
+const pendingOutgoingMessages = new Map<string, PendingOutgoingMessage>();
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const roomKeyEl = document.getElementById("room-key");
@@ -40,7 +57,6 @@ const messageInput = document.getElementById("message-input") as HTMLTextAreaEle
 const sendBtn = document.getElementById("send-btn") as HTMLButtonElement | null;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement | null;
 const filePickerInput = document.getElementById("file-picker") as HTMLInputElement | null;
-const uploadProgressEl = document.getElementById("upload-progress");
 const reconnectBanner = document.getElementById("reconnect-banner");
 const topLoader = document.getElementById("top-loader");
 const mobileViewport = window.matchMedia("(max-width: 640px)");
@@ -58,6 +74,21 @@ messageList?.addEventListener(
   },
   { passive: true }
 );
+
+messageList?.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const cancelBtn = target.closest<HTMLButtonElement>(".pending-cancel-btn[data-temp-id]");
+  const cancelTempId = cancelBtn?.dataset.tempId;
+  if (cancelBtn && cancelTempId) {
+    cancelPendingOutgoingMessage(cancelTempId);
+    return;
+  }
+  const retryBtn = target.closest<HTMLButtonElement>(".pending-retry-btn[data-temp-id]");
+  const tempId = retryBtn?.dataset.tempId;
+  if (!retryBtn || !tempId) return;
+  retryPendingOutgoingMessage(tempId);
+});
 
 // ── API types ─────────────────────────────────────────────────────────────
 interface JoinResponse {
@@ -185,8 +216,15 @@ function connectWebSocket(): void {
     userId: identity.userId,
     displayName: identity.displayName,
     fromSeq: Math.max(0, lastSeq - 1),
-    onOpen: () => { if (reconnectBanner) reconnectBanner.style.display = "none"; },
-    onClose: () => { if (reconnectBanner) reconnectBanner.style.display = "block"; },
+    onOpen: () => {
+      isWsConnected = true;
+      flushPendingOutgoingMessages();
+      if (reconnectBanner) reconnectBanner.style.display = "none";
+    },
+    onClose: () => {
+      isWsConnected = false;
+      if (reconnectBanner) reconnectBanner.style.display = "block";
+    },
     onMessage: handleServerMessage,
   });
 }
@@ -210,7 +248,14 @@ function handleServerMessage(msg: ServerMessage): void {
 
     case "msg:ack": {
       const temp = document.querySelector<HTMLElement>(`[data-temp-id="${msg.tempId}"]`);
-      if (temp) temp.dataset.msgId = msg.id;
+      if (temp) {
+        temp.dataset.msgId = msg.id;
+        temp.classList.remove("pending");
+        temp.classList.remove("uploading", "upload-failed");
+        temp.querySelector(".pending-retry-btn")?.remove();
+        delete temp.dataset.tempId;
+      }
+      pendingOutgoingMessages.delete(msg.tempId);
       if (msg.seq > lastSeq) {
         lastSeq = msg.seq;
         ws?.updateFromSeq(lastSeq);
@@ -227,9 +272,6 @@ function handleServerMessage(msg: ServerMessage): void {
       document
         .querySelectorAll<HTMLElement>(`[data-user-id="${msg.userId}"] .user-name`)
         .forEach((el) => { el.textContent = formatUserListName(msg.userId, msg.newName); });
-      document
-        .querySelectorAll<HTMLElement>(`[data-sender-id="${msg.userId}"] .sender-name`)
-        .forEach((el) => { el.textContent = msg.newName; });
       break;
     }
 
@@ -358,7 +400,7 @@ function prependMessages(messages: Message[]): void {
   for (const msg of messages) {
     fragment.prepend(buildMessageEl(msg));
   }
-  messageList.insertBefore(fragment, messageList.firstChild);
+  messageList.insertBefore(fragment, topLoader?.nextSibling ?? null);
   messageList.scrollTop += messageList.scrollHeight - before;
 }
 
@@ -391,23 +433,235 @@ function sendText(): void {
     return;
   }
   const tempId = crypto.randomUUID();
-
-  const optimistic: Message = {
-    id: tempId,
-    seq: -1,
-    type: "text",
-    senderId: identity.userId,
-    senderName: identity.displayName,
-    content: text,
-    createdAt: Date.now(),
-  };
-  const el = buildMessageEl(optimistic);
-  el.dataset.tempId = tempId;
-  messageList?.appendChild(el);
-  scrollToBottom();
-
-  ws?.send({ type: "msg:text", content: text, tempId });
+  queuePendingOutgoingMessage({
+    tempId,
+    kind: "text",
+    optimisticMessage: createOptimisticTextMessage(text, tempId),
+    payload: { type: "msg:text", content: text, tempId },
+    autoRetryCount: 0,
+    status: "pending",
+  });
   if (messageInput) messageInput.value = "";
+}
+
+function queuePendingOutgoingMessage(pending: PendingOutgoingMessage): void {
+  const tempId = pending.tempId;
+  pendingOutgoingMessages.set(tempId, pending);
+  syncPendingOutgoingMessageEl(tempId);
+  scrollToBottom();
+  if (pending.status === "pending") {
+    sendPendingOutgoingMessage(tempId);
+    return;
+  }
+  if (pending.status === "uploading") {
+    void uploadPendingFileMessage(tempId);
+  }
+}
+
+function cancelPendingOutgoingMessage(tempId: string): void {
+  const pending = pendingOutgoingMessages.get(tempId);
+  if (!pending || pending.status !== "uploading") return;
+  pending.uploadAbortController?.abort();
+  pendingOutgoingMessages.set(tempId, {
+    ...pending,
+    status: "upload-failed",
+    uploadAbortController: undefined,
+    errorMessage: "Upload canceled",
+  });
+  syncPendingOutgoingMessageEl(tempId);
+}
+
+function sendPendingOutgoingMessage(tempId: string): void {
+  const pending = pendingOutgoingMessages.get(tempId);
+  if (!pending || pending.status !== "pending" || !pending.payload) return;
+  ws?.send(pending.payload);
+  syncPendingOutgoingMessageEl(tempId);
+}
+
+function flushPendingOutgoingMessages(): void {
+  if (!isWsConnected || pendingOutgoingMessages.size === 0) return;
+  for (const [tempId, pending] of pendingOutgoingMessages) {
+    if (pending.status !== "pending" || !pending.payload) continue;
+    if (pending.autoRetryCount >= MAX_AUTO_RETRY_COUNT) {
+      syncPendingOutgoingMessageEl(tempId);
+      continue;
+    }
+    ws?.send(pending.payload);
+    const autoRetryCount = pending.autoRetryCount + 1;
+    pendingOutgoingMessages.set(tempId, { ...pending, autoRetryCount });
+    syncPendingOutgoingMessageEl(tempId);
+  }
+}
+
+function retryPendingOutgoingMessage(tempId: string): void {
+  const pending = pendingOutgoingMessages.get(tempId);
+  if (!pending) return;
+  if (pending.status === "uploading") return;
+  if (pending.status === "upload-failed") {
+    pendingOutgoingMessages.set(tempId, {
+      ...pending,
+      autoRetryCount: 0,
+      status: "uploading",
+      uploadProgress: 0,
+      errorMessage: undefined,
+    });
+    syncPendingOutgoingMessageEl(tempId);
+    void uploadPendingFileMessage(tempId);
+    return;
+  }
+  pendingOutgoingMessages.set(tempId, { ...pending, autoRetryCount: 0 });
+  syncPendingOutgoingMessageEl(tempId);
+  sendPendingOutgoingMessage(tempId);
+}
+
+function syncPendingOutgoingMessageEl(tempId: string): void {
+  const pending = pendingOutgoingMessages.get(tempId);
+  if (!pending) return;
+
+  const nextEl = buildPendingOutgoingMessageEl(pending);
+  const currentEl = document.querySelector<HTMLElement>(`[data-temp-id="${tempId}"]`);
+  if (currentEl) {
+    currentEl.replaceWith(nextEl);
+  } else {
+    messageList?.appendChild(nextEl);
+  }
+
+  if (pending.status === "pending") {
+    watchVisualMediaLayout(nextEl);
+    if (stickToBottom) {
+      scrollToBottom();
+    }
+  }
+}
+
+function buildPendingOutgoingMessageEl(pending: PendingOutgoingMessage): HTMLElement {
+  const el = pending.kind === "file" && pending.status !== "pending"
+    ? buildPendingFileTransferEl(pending)
+    : buildMessageEl(pending.optimisticMessage);
+
+  el.dataset.tempId = pending.tempId;
+  el.classList.add("pending");
+  el.classList.toggle("uploading", pending.status === "uploading");
+  el.classList.toggle("upload-failed", pending.status === "upload-failed");
+
+  if (shouldShowRetryButton(pending)) {
+    const retryBtn = document.createElement("button");
+    retryBtn.type = "button";
+    retryBtn.className = "pending-retry-btn";
+    retryBtn.dataset.tempId = pending.tempId;
+    retryBtn.textContent = "Retry";
+    el.insertBefore(retryBtn, el.firstChild);
+  }
+
+  return el;
+}
+
+function buildPendingFileTransferEl(pending: PendingOutgoingMessage): HTMLElement {
+  const progress = Math.max(0, Math.min(100, pending.uploadProgress ?? 0));
+  const fileName = pending.file?.name ?? pending.optimisticMessage.fileName ?? "file";
+  const fileSizeBytes = pending.file?.size ?? pending.optimisticMessage.fileSizeBytes ?? 0;
+  const statusLabel = pending.status === "upload-failed"
+    ? pending.errorMessage || "Upload failed"
+    : `Uploading ${progress}%`;
+
+  const el = document.createElement("div");
+  el.className = "message own";
+  el.dataset.msgId = pending.tempId;
+  el.dataset.senderId = identity.userId;
+  el.innerHTML = `
+    <div class="bubble">
+      <div class="bubble-meta">
+        <span class="sender-name">${escHtml(identity.displayName)}</span>
+        <span class="bubble-time">${new Date(pending.optimisticMessage.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}</span>
+      </div>
+      <div class="bubble-content">
+        <div class="bubble-file pending-file-transfer">
+          <span class="file-icon">⬆</span>
+          <span class="file-name">${escHtml(fileName)}</span>
+          <span class="file-size">(${formatFileSize(fileSizeBytes)})</span>
+        </div>
+        <div class="pending-upload-status">
+          <div class="pending-upload-body">
+            <div class="pending-upload-header">
+              <span class="pending-upload-label">${escHtml(statusLabel)}</span>
+            </div>
+            <div class="pending-upload-track" aria-hidden="true">
+              <span class="pending-upload-bar" style="width: ${progress}%"></span>
+            </div>
+          </div>
+          ${pending.status === "uploading" ? `<button type="button" class="pending-cancel-btn" data-temp-id="${pending.tempId}">Cancel</button>` : ""}
+        </div>
+      </div>
+    </div>`;
+  return el;
+}
+
+function shouldShowRetryButton(pending: PendingOutgoingMessage): boolean {
+  if (pending.status === "upload-failed") return true;
+  if (pending.status !== "pending") return false;
+  return pending.autoRetryCount >= MAX_AUTO_RETRY_COUNT;
+}
+
+async function uploadPendingFileMessage(tempId: string): Promise<void> {
+  const pending = pendingOutgoingMessages.get(tempId);
+  if (!pending || pending.kind !== "file" || !pending.file) return;
+  const uploadAbortController = new AbortController();
+  pendingOutgoingMessages.set(tempId, { ...pending, uploadAbortController });
+  syncPendingOutgoingMessageEl(tempId);
+
+  try {
+    const result = await uploadFile({
+      roomKey,
+      file: pending.file,
+      signal: uploadAbortController.signal,
+      onProgress: (pct) => {
+        const current = pendingOutgoingMessages.get(tempId);
+        if (!current || current.status !== "uploading") return;
+        pendingOutgoingMessages.set(tempId, { ...current, uploadProgress: pct });
+        syncPendingOutgoingMessageEl(tempId);
+      },
+    });
+
+    const current = pendingOutgoingMessages.get(tempId);
+    if (!current || current.status !== "uploading") return;
+    const nextPending: PendingOutgoingMessage = {
+      ...current,
+      optimisticMessage: createOptimisticFileMessage(result.objectKey, result.fileName, result.mimeType, result.sizeBytes, tempId),
+      payload: {
+        type: "msg:file",
+        objectKey: result.objectKey,
+        fileName: result.fileName,
+        mimeType: result.mimeType,
+        sizeBytes: result.sizeBytes,
+        tempId,
+      },
+      autoRetryCount: 0,
+      status: "pending",
+      uploadProgress: 100,
+      errorMessage: undefined,
+      uploadAbortController: undefined,
+    };
+    pendingOutgoingMessages.set(tempId, nextPending);
+    syncPendingOutgoingMessageEl(tempId);
+    sendPendingOutgoingMessage(tempId);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Upload failed";
+    const current = pendingOutgoingMessages.get(tempId);
+    if (!current) return;
+    pendingOutgoingMessages.set(tempId, {
+      ...current,
+      status: "upload-failed",
+      errorMessage: message,
+      uploadAbortController: undefined,
+    });
+    syncPendingOutgoingMessageEl(tempId);
+  }
 }
 
 function runInputCommand(text: string): boolean {
@@ -466,42 +720,73 @@ async function handleFileUploads(files: File[]): Promise<void> {
       alert(`"${file.name}" exceeds the 100 MB limit`);
       continue;
     }
-    const progressItem = createProgressItem(file.name);
-    uploadProgressEl?.appendChild(progressItem.el);
-    try {
-      const result = await uploadFile({ roomKey, file, onProgress: (pct) => progressItem.update(pct) });
-      ws?.send({
-        type: "msg:file",
-        objectKey: result.objectKey,
-        fileName: result.fileName,
-        mimeType: result.mimeType,
-        sizeBytes: result.sizeBytes,
-        tempId: crypto.randomUUID(),
-      });
-      progressItem.el.remove();
-    } catch (err) {
-      progressItem.setError(err instanceof Error ? err.message : "Upload failed");
-      setTimeout(() => progressItem.el.remove(), 5000);
-    }
+    const tempId = crypto.randomUUID();
+    queuePendingOutgoingMessage(createUploadingFileMessage(file, tempId));
   }
 }
 
-interface ProgressItem {
-  el: HTMLElement;
-  update: (pct: number) => void;
-  setError: (msg: string) => void;
+function createOptimisticTextMessage(text: string, tempId: string): Message {
+  return {
+    id: tempId,
+    seq: -1,
+    type: "text",
+    senderId: identity.userId,
+    senderName: identity.displayName,
+    content: text,
+    createdAt: Date.now(),
+  };
 }
 
-function createProgressItem(fileName: string): ProgressItem {
-  const el = document.createElement("div");
-  el.className = "upload-item";
-  el.innerHTML = `<span class="upload-name">${escHtml(fileName)}</span><span class="upload-pct">0%</span>`;
-  const pctEl = el.querySelector<HTMLElement>(".upload-pct")!;
+function createUploadingFileMessage(file: File, tempId: string): PendingOutgoingMessage {
+  const mimeType = file.type || "application/octet-stream";
   return {
-    el,
-    update(pct) { pctEl.textContent = `${pct}%`; },
-    setError(msg) { pctEl.textContent = `Error: ${msg}`; el.classList.add("upload-error"); },
+    tempId,
+    kind: "file",
+    optimisticMessage: {
+      id: tempId,
+      seq: -1,
+      type: getFileMessageType(mimeType),
+      senderId: identity.userId,
+      senderName: identity.displayName,
+      content: "",
+      fileName: file.name,
+      fileMime: mimeType,
+      fileSizeBytes: file.size,
+      createdAt: Date.now(),
+    },
+    autoRetryCount: 0,
+    status: "uploading",
+    file,
+    uploadProgress: 0,
   };
+}
+
+function createOptimisticFileMessage(
+  objectKey: string,
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+  tempId: string
+): Message {
+  return {
+    id: tempId,
+    seq: -1,
+    type: getFileMessageType(mimeType),
+    senderId: identity.userId,
+    senderName: identity.displayName,
+    content: objectKey,
+    fileName,
+    fileMime: mimeType,
+    fileSizeBytes: sizeBytes,
+    createdAt: Date.now(),
+  };
+}
+
+function getFileMessageType(mimeType: string): Message["type"] {
+  if (isImageMime(mimeType)) return "image";
+  if (isAudioMime(mimeType)) return "audio";
+  if (isVideoMime(mimeType)) return "video";
+  return "file";
 }
 
 // ── Presence ──────────────────────────────────────────────────────────────
