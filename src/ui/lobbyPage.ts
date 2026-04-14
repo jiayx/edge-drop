@@ -2,7 +2,7 @@ export function renderLobbyPage(): string {
   return `
     <div id="lobby-page" class="lobby">
       <div class="lobby-card">
-        <div class="logo">edge<span>drop</span></div>
+        <div class="logo">Edge <span>Drop</span></div>
 
         <div>
           <h2>Enter room key</h2>

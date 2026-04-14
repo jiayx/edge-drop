@@ -12,7 +12,7 @@ if (!app) {
 
 if (route?.name === "room") {
   app.innerHTML = renderRoomPage();
-  document.title = `Room ${route.roomKey} — edge-drop`;
+  document.title = `Room ${route.roomKey} — Edge Drop`;
   void import("./assets/js/room");
 } else if (route?.name === "lobby") {
   app.innerHTML = renderLobbyPage();
