@@ -1,4 +1,3 @@
-// lobby.ts — lobby page: create or join a room
 export {};
 
 const lobbyRoot = document.getElementById("lobby-page");
@@ -9,7 +8,7 @@ if (lobbyRoot) {
     expiresAt: number;
   }
 
-  function roomPath(roomKey: string): string {
+  function roomUrl(roomKey: string): string {
     return `/room/${roomKey}`;
   }
 
@@ -74,7 +73,7 @@ if (lobbyRoot) {
         const res = await fetch("/api/v1/rooms", { method: "POST" });
         if (!res.ok) throw new Error("Failed to create room");
         const { roomKey } = await res.json() as CreateRoomResponse;
-        window.location.assign(roomPath(roomKey));
+        window.location.assign(roomUrl(roomKey));
       } catch (err) {
         showError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -94,7 +93,7 @@ if (lobbyRoot) {
       if (res.status === 404) throw new Error("Room does not exist.");
       if (res.status === 410) throw new Error("Room has expired.");
       if (!res.ok) throw new Error("Failed to join room");
-      window.location.assign(roomPath(key));
+      window.location.assign(roomUrl(key));
     } catch (err) {
       showError(err instanceof Error ? err.message : "Unknown error");
     } finally {

@@ -1,7 +1,5 @@
-// identity.ts — manages per-room anonymous identity in localStorage
-
-const ADJECTIVES = ["Swift","Lazy","Bright","Calm","Bold","Shy","Cool","Warm","Dark","Wild"] as const;
-const ANIMALS = ["Fox","Bear","Wolf","Owl","Hawk","Deer","Lynx","Seal","Crow","Hare"] as const;
+const ADJECTIVES = ["Swift", "Lazy", "Bright", "Calm", "Bold", "Shy", "Cool", "Warm", "Dark", "Wild"] as const;
+const ANIMALS = ["Fox", "Bear", "Wolf", "Owl", "Hawk", "Deer", "Lynx", "Seal", "Crow", "Hare"] as const;
 
 export interface Identity {
   userId: string;
@@ -46,4 +44,3 @@ export function updateIdentityName(roomKey: string, newName: string): void {
     }
   } catch { /* ignore */ }
 }
-

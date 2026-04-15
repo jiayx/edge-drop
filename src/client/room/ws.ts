@@ -1,5 +1,4 @@
-// ws.ts — WebSocket client with exponential backoff auto-reconnect
-import type { ServerMessage, ClientMessage } from "@/room/types";
+import type { ClientMessage, ServerMessage } from "@/room/types";
 
 export interface RoomWebSocketOptions {
   roomKey: string;
