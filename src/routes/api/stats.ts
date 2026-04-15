@@ -1,5 +1,6 @@
 import type { Context } from "hono";
-import type { RoomIndexEntry } from "../types";
+import { Hono } from "hono";
+import type { RoomIndexEntry } from "@/room/types";
 
 // GET /api/v1/stats — internal stats, auth-gated
 export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response> {
@@ -25,3 +26,7 @@ export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response>
     timestamp: now,
   });
 }
+
+export const statsApi = new Hono<{ Bindings: Env }>();
+
+statsApi.get("/stats", getStats);

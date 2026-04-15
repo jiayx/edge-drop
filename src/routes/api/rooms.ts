@@ -1,25 +1,12 @@
 import type { Context } from "hono";
-import { generateRoomKey, isValidRoomKey } from "../lib/roomKey";
-import { roomTtlMs, isExpired } from "../lib/expiry";
-import type { RoomIndexEntry } from "../types";
+import { Hono } from "hono";
+import { generateRoomKey, isValidRoomKey } from "@/lib/roomKey";
+import { roomTtlMs, isExpired } from "@/lib/expiry";
+import type { RoomIndexEntry } from "@/room/types";
+import { getRoomIndexStub, getRoomStub, lookupRoom } from "@/room/store";
 
 function param(c: Context<{ Bindings: Env }>, name: string): string {
   return c.req.param(name) ?? "";
-}
-
-function getRoomIndexStub(env: Env): DurableObjectStub {
-  return env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
-}
-
-async function lookupRoom(env: Env, key: string): Promise<RoomIndexEntry | null> {
-  const stub = getRoomIndexStub(env);
-  const res = await stub.fetch(`http://internal/lookup/${key}`);
-  if (res.status === 404) return null;
-  return res.json<RoomIndexEntry>();
-}
-
-function getRoomStub(env: Env, doId: string): DurableObjectStub {
-  return env.ROOMS.get(env.ROOMS.idFromString(doId));
 }
 
 // POST /api/v1/rooms — create a new room
@@ -171,4 +158,10 @@ export async function getRoomMessages(c: Context<{ Bindings: Env }>): Promise<Re
   return new Response(res.body, { status: res.status, headers: { "Content-Type": "application/json" } });
 }
 
-export { lookupRoom, getRoomStub, getRoomIndexStub };
+export const roomApi = new Hono<{ Bindings: Env }>();
+
+roomApi.post("/rooms", createRoom);
+roomApi.get("/rooms/:key", getRoomInfo);
+roomApi.post("/rooms/:key/join", joinRoom);
+roomApi.post("/rooms/:key/extend", extendRoom);
+roomApi.get("/rooms/:key/messages", getRoomMessages);

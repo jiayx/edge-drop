@@ -5,7 +5,7 @@ import type {
   MessageType,
   ClientMessage,
   ServerMessage,
-} from "../types";
+} from "@/room/types";
 
 const MSG_KEY_PAD = 10;
 

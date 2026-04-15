@@ -5,6 +5,7 @@ declare module "assets:*" {
 }
 
 interface Env {
+  ASSETS: Fetcher;
   FILE_BUCKET: R2Bucket;
   ROOMS: DurableObjectNamespace;
   ROOM_INDEX: DurableObjectNamespace;

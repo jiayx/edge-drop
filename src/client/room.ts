@@ -1,18 +1,26 @@
 // room.ts — room page: WebSocket, messages, upload, presence
 
-import { getOrCreateIdentity, updateIdentityName, type Identity } from "./identity";
-import { RoomWebSocket } from "./ws";
-import { uploadFile, formatFileSize, isAudioMime, isImageMime, isVideoMime } from "./upload";
-import { createAudioPlayer } from "./audio";
-import type { ServerMessage, Message, UserRecord, ClientMessage } from "../../worker/types";
-import { lobbyPath, parseAppRoute } from "../../router";
+import { getOrCreateIdentity, updateIdentityName, type Identity } from "@/client/identity";
+import { RoomWebSocket } from "@/client/ws";
+import { uploadFile, formatFileSize, isAudioMime, isImageMime, isVideoMime } from "@/client/upload";
+import { createAudioPlayer } from "@/client/audio";
+import type { ServerMessage, Message, UserRecord, ClientMessage } from "@/room/types";
 
 // ── Init ──────────────────────────────────────────────────────────────────
-const route = parseAppRoute(location.pathname);
-if (route?.name !== "room") {
-  window.location.replace("/");
+const roomRoot = document.getElementById("room-page");
+if (!(roomRoot instanceof HTMLElement)) {
+  throw new Error("Missing #room-page root");
 }
-const roomKey = route?.name === "room" ? route.roomKey : "";
+const roomKey = roomRoot.dataset.roomKey ?? "";
+if (!roomKey) {
+  throw new Error("Missing room key on #room-page");
+}
+
+function lobbyPath(params?: URLSearchParams | string): string {
+  if (!params) return "/";
+  const search = typeof params === "string" ? params : params.toString();
+  return search ? `/?${search}` : "/";
+}
 
 const identity: Identity = getOrCreateIdentity(roomKey);
 let lastSeq = 0;
@@ -122,8 +130,13 @@ void (async () => {
     body: JSON.stringify({ userId: identity.userId, displayName: identity.displayName }),
   });
 
-  if (res.status === 404 || res.status === 410) {
-    window.location.replace(lobbyPath("expired=1"));
+  if (res.status === 404) {
+    window.location.replace(lobbyPath("error=not-found"));
+    return;
+  }
+
+  if (res.status === 410) {
+    window.location.replace(lobbyPath("error=expired"));
     return;
   }
 

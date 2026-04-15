@@ -1,7 +1,8 @@
 import type { Context } from "hono";
-import { isValidRoomKey } from "../lib/roomKey";
-import { isExpired } from "../lib/expiry";
-import { lookupRoom, getRoomStub } from "./rooms";
+import { Hono } from "hono";
+import { isValidRoomKey } from "@/lib/roomKey";
+import { isExpired } from "@/lib/expiry";
+import { getRoomStub, lookupRoom } from "@/room/store";
 
 // GET /api/v1/ws/:key — WebSocket upgrade
 export async function upgradeWebSocket(c: Context<{ Bindings: Env }>): Promise<Response> {
@@ -24,3 +25,7 @@ export async function upgradeWebSocket(c: Context<{ Bindings: Env }>): Promise<R
   const url = new URL(c.req.url);
   return stub.fetch(`http://internal/ws${url.search}`, c.req.raw);
 }
+
+export const websocketApi = new Hono<{ Bindings: Env }>();
+
+websocketApi.get("/ws/:key", upgradeWebSocket);

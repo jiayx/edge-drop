@@ -1,6 +1,6 @@
-import type { RoomIndexEntry } from "../types";
-import { isExpired } from "../lib/expiry";
-import { listRoomObjects, deleteObjects } from "../lib/r2";
+import type { RoomIndexEntry } from "@/room/types";
+import { isExpired } from "@/lib/expiry";
+import { listRoomObjects, deleteObjects } from "@/lib/r2";
 
 interface CleanupStats {
   scanned: number;

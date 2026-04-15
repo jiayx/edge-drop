@@ -1,8 +1,9 @@
 import type { Context } from "hono";
-import { isValidRoomKey } from "../lib/roomKey";
-import { isExpired } from "../lib/expiry";
-import { putObject, deleteObjects } from "../lib/r2";
-import { lookupRoom } from "./rooms";
+import { Hono } from "hono";
+import { isValidRoomKey } from "@/lib/roomKey";
+import { isExpired } from "@/lib/expiry";
+import { putObject, deleteObjects } from "@/lib/r2";
+import { lookupRoom } from "@/room/store";
 
 function param(c: Context<{ Bindings: Env }>, name: string): string {
   return c.req.param(name) ?? "";
@@ -203,3 +204,9 @@ export async function deleteFile(c: Context<{ Bindings: Env }>): Promise<Respons
   await deleteObjects(env, [objectKey]);
   return c.json({ ok: true });
 }
+
+export const fileApi = new Hono<{ Bindings: Env }>();
+
+fileApi.post("/rooms/:key/files", uploadFile);
+fileApi.get("/rooms/:key/files/:objectKey{.+}", downloadFile);
+fileApi.delete("/rooms/:key/files/:objectKey{.+}", deleteFile);

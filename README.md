@@ -27,12 +27,12 @@ Anonymous temporary room chat and file drop built with Vite, Cloudflare Workers,
 
 ## Project Structure
 
-- `src/ui/*`: page HTML rendering
-- `src/assets/js/*`: frontend behavior
-- `src/assets/css/app.css`: app styles
-- `src/worker/index.ts`: Worker entry
-- `src/worker/routes/*`: HTTP and WebSocket routes
-- `src/worker/durable/*`: room state Durable Objects
+- `src/views/*`: page HTML rendering
+- `src/client/*`: frontend behavior
+- `src/app.css`: app styles
+- `src/index.ts`: Worker entry
+- `src/routes/*`: HTTP and page routes
+- `src/room/durable/*`: room state Durable Objects
 
 ## Requirements
 

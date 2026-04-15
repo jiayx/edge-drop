@@ -1,4 +1,4 @@
-import type { RoomIndexEntry } from "../types";
+import type { RoomIndexEntry } from "@/room/types";
 
 export class RoomIndexObject {
   private state: DurableObjectState;
