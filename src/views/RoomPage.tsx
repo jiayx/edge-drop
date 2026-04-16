@@ -76,7 +76,7 @@ export function RoomPage(props: RoomPageProps) {
           type="file"
           multiple
           style="display:none"
-          accept="image/*,audio/*,video/*,text/*,application/pdf,application/zip,application/json,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+          accept="image/*,audio/*,video/*,text/*,application/pdf,application/json,application/zip,application/epub+zip,text/markdown,text/csv,application/rtf,.epub,.md,.csv,.rtf,.7z,.rar,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.heic,.heif"
         />
       </footer>
     </div>
