@@ -1,4 +1,5 @@
 export {};
+import { applyThemePreference } from "@/client/theme";
 
 const lobbyRoot = document.getElementById("lobby-page");
 
@@ -19,6 +20,12 @@ if (lobbyRoot) {
   const createBtn = document.getElementById("create-btn") as HTMLButtonElement | null;
   const errorBanner = document.getElementById("error-banner") as HTMLDivElement | null;
   const initialError = new URLSearchParams(window.location.search).get("error");
+  const themeViewport = window.matchMedia("(prefers-color-scheme: dark)");
+
+  applyThemePreference(themeViewport);
+  themeViewport.addEventListener("change", () => {
+    applyThemePreference(themeViewport);
+  });
 
   if (initialError === "expired") {
     showError("Room has expired.");

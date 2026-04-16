@@ -1,22 +1,7 @@
+import { applyThemePreference, getAppliedTheme, getStoredThemePreference } from "@/client/theme";
+
 import type { RoomPageContext, ThemeMode, ThemePreference } from "./state";
 import { flash } from "./utils";
-
-const THEME_STORAGE_KEY = "edge-drop:theme";
-
-function getStoredThemePreference(): ThemePreference {
-  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-  if (storedTheme === "light" || storedTheme === "dark") {
-    return storedTheme;
-  }
-  return "system";
-}
-
-export function getAppliedTheme(context: RoomPageContext, preference: ThemePreference): ThemeMode {
-  if (preference === "light" || preference === "dark") {
-    return preference;
-  }
-  return context.dom.themeViewport.matches ? "dark" : "light";
-}
 
 function getNextThemePreference(preference: ThemePreference): ThemePreference {
   switch (preference) {
@@ -31,9 +16,9 @@ function getNextThemePreference(preference: ThemePreference): ThemePreference {
 
 function setThemePreference(context: RoomPageContext, preference: ThemePreference): void {
   if (preference === "system") {
-    localStorage.removeItem(THEME_STORAGE_KEY);
+    localStorage.removeItem("edge-drop:theme");
   } else {
-    localStorage.setItem(THEME_STORAGE_KEY, preference);
+    localStorage.setItem("edge-drop:theme", preference);
   }
   syncTheme(context);
 }
@@ -44,14 +29,9 @@ export function cycleThemePreference(context: RoomPageContext): ThemePreference 
   return nextTheme;
 }
 
-export function syncTheme(context: RoomPageContext): void {
-  const preference = getStoredThemePreference();
-  const theme = getAppliedTheme(context, preference);
-  if (preference === "system") {
-    delete document.documentElement.dataset.theme;
-  } else {
-    document.documentElement.dataset.theme = theme;
-  }
+function syncTheme(context: RoomPageContext): void {
+  const preference = applyThemePreference(context.dom.themeViewport);
+  const theme = getAppliedTheme(context.dom.themeViewport, preference);
   if (!context.dom.themeToggleBtn) return;
   context.dom.themeToggleBtn.textContent =
     preference === "system" ? "◐" : theme === "dark" ? "☾" : "☀";
@@ -82,13 +62,24 @@ function updateCountdown(context: RoomPageContext): void {
   countdownEl.className = `countdown${ms < 1_800_000 ? " warning" : ""}`;
 }
 
-export function startCountdown(context: RoomPageContext): void {
+function startCountdown(context: RoomPageContext): void {
   if (context.state.countdownInterval) clearInterval(context.state.countdownInterval);
   updateCountdown(context);
   context.state.countdownInterval = setInterval(() => updateCountdown(context), 10_000);
 }
 
-export function setupHeader(context: RoomPageContext): void {
+export interface RoomHeaderController {
+  cycleThemePreference: () => ThemePreference;
+  getAppliedTheme: (preference: ThemePreference) => ThemeMode;
+  setExpiresAt: (expiresAt: number) => void;
+}
+
+export function createRoomHeaderController(context: RoomPageContext): RoomHeaderController {
+  const setExpiresAt = (expiresAt: number): void => {
+    context.state.expiresAt = expiresAt;
+    startCountdown(context);
+  };
+
   syncTheme(context);
   syncMessageInputPlaceholder(context);
 
@@ -113,8 +104,7 @@ export function setupHeader(context: RoomPageContext): void {
         const res = await fetch(`/api/v1/rooms/${context.roomKey}/extend`, { method: "POST" });
         if (!res.ok) throw new Error("Failed to extend");
         const data = await res.json() as { ok: boolean; expiresAt: number };
-        context.state.expiresAt = data.expiresAt;
-        startCountdown(context);
+        setExpiresAt(data.expiresAt);
       } catch (err) {
         alert(err instanceof Error ? err.message : "Failed to extend room");
       } finally {
@@ -122,4 +112,11 @@ export function setupHeader(context: RoomPageContext): void {
       }
     })();
   });
+
+  return {
+    cycleThemePreference: () => cycleThemePreference(context),
+    getAppliedTheme: (preference) =>
+      getAppliedTheme(context.dom.themeViewport, preference) as ThemeMode,
+    setExpiresAt,
+  };
 }

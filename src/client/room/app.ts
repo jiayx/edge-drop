@@ -1,7 +1,7 @@
 import type { Message, ServerMessage } from "@/room/types";
 
 import { createRoomDom, getRoomKey, getRoomRoot } from "./dom";
-import { cycleThemePreference, getAppliedTheme, setupHeader, startCountdown } from "./header";
+import { createRoomHeaderController } from "./header";
 import { getOrCreateIdentity } from "./identity";
 import {
   appendSystemNotice,
@@ -51,15 +51,15 @@ export async function bootstrapRoomPage(): Promise<void> {
   const state = createRoomPageState();
   const context: RoomPageContext = { roomKey, identity, dom, state };
 
-  setupHeader(context);
+  const header = createRoomHeaderController(context);
   bindMessageListScroll(context);
 
   const appendLocalSystemNotice = (text: string): void => appendSystemNotice(context, text);
   const { applyRename } = setupRename(context, appendLocalSystemNotice);
   const outbox = createOutbox(context, {
     appendLocalSystemNotice,
-    cycleThemePreference: () => cycleThemePreference(context),
-    getAppliedTheme: (preference) => getAppliedTheme(context, preference),
+    cycleThemePreference: () => header.cycleThemePreference(),
+    getAppliedTheme: (preference) => header.getAppliedTheme(preference),
     applyRename,
   });
   outbox.bindComposer();
@@ -103,8 +103,7 @@ export async function bootstrapRoomPage(): Promise<void> {
         break;
 
       case "room:extended":
-        context.state.expiresAt = msg.expiresAt;
-        startCountdown(context);
+        header.setExpiresAt(msg.expiresAt);
         break;
 
       case "room:expiring":
@@ -170,10 +169,9 @@ export async function bootstrapRoomPage(): Promise<void> {
   }
 
   const data = await res.json() as JoinResponse;
-  context.state.expiresAt = data.expiresAt;
+  header.setExpiresAt(data.expiresAt);
   context.state.lastSeq = data.nextSeq ?? 0;
   context.state.hasMore = data.hasMoreMessages;
-  startCountdown(context);
   updatePresence(context, data.onlineCount, data.onlineUsers);
 
   data.messages.forEach((msg) => {
