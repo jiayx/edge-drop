@@ -43,7 +43,9 @@ export function LobbyPage(props: LobbyPageProps) {
           <button id="create-btn" class="btn btn-secondary">Create New Room</button>
         </div>
 
-        <p style="font-size:0.75rem;color:var(--text-dim);text-align:center">
+        <p style="font-size:0.75rem;line-height:1.7;color:var(--text-dim);text-align:center">
+          Temporary rooms for sharing text and files instantly.
+          <br />
           Rooms auto-expire after 24 hours. No registration required.
         </p>
       </div>
