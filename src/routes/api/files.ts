@@ -42,6 +42,11 @@ function buildContentDisposition(disposition: "inline" | "attachment", fileName:
   return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${utf8Name}`;
 }
 
+function isClientDisconnectError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.message.includes("Network connection lost.");
+}
+
 // POST /api/v1/rooms/:key/files
 export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
@@ -94,13 +99,21 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
     return c.json({ error: "File name too long" }, 400);
   }
 
-  await putObject(env, objectKey, c.req.raw.body, {
-    contentType: mimeType,
-    contentDisposition: buildContentDisposition("inline", fileName),
-    customMetadata: {
-      originalFileName: fileName,
-    },
-  });
+  try {
+    await putObject(env, objectKey, c.req.raw.body, {
+      contentType: mimeType,
+      contentDisposition: buildContentDisposition("inline", fileName),
+      customMetadata: {
+        originalFileName: fileName,
+      },
+    });
+  } catch (err) {
+    if (isClientDisconnectError(err)) {
+      console.log(`[edge-drop] upload canceled by client: room=${key} object=${objectKey}`);
+      return c.json({ error: "Upload canceled" }, 499);
+    }
+    throw err;
+  }
 
   return c.json({ objectKey });
 }

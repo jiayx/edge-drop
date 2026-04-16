@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { handleScheduled } from "@/cron/cleanup";
+import { errorResponse, logUnexpected } from "@/lib/errors";
 import { fileApi } from "@/routes/api/files";
 import { roomApi } from "@/routes/api/rooms";
 import { statsApi } from "@/routes/api/stats";
@@ -11,6 +12,14 @@ export { RoomObject } from "@/room/durable/RoomObject";
 export { RoomIndexObject } from "@/room/durable/RoomIndexObject";
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.onError((err, c) => {
+  logUnexpected("http unexpected error", err, {
+    method: c.req.method,
+    path: c.req.path,
+  });
+  return errorResponse(c);
+});
 
 app.route("/", pageRoutes);
 app.route("/api/v1", roomApi);

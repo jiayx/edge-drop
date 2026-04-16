@@ -657,7 +657,7 @@ a:hover {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  padding: 0.22rem 0.55rem;
+  padding: 0.28rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface2);
@@ -689,7 +689,7 @@ a:hover {
 }
 
 .pending-cancel-btn:hover {
-  background: color-mix(in srgb, var(--surface2) 92%, var(--border));
+  background: var(--border);
   color: var(--text);
 }
 

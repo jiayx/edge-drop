@@ -1,4 +1,5 @@
 import type { RoomIndexEntry } from "@/room/types";
+import { logUnexpected } from "@/lib/errors";
 
 export class RoomIndexObject {
   private state: DurableObjectState;
@@ -11,22 +12,30 @@ export class RoomIndexObject {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (request.method === "GET" && path === "/list") {
-      return this.handleList();
-    }
-    if (request.method === "POST" && path === "/register") {
-      return this.handleRegister(request);
-    }
-    if (request.method === "GET" && path.startsWith("/lookup/")) {
-      const key = path.slice("/lookup/".length);
-      return this.handleLookup(key);
-    }
-    if (request.method === "DELETE" && path.startsWith("/deregister/")) {
-      const key = path.slice("/deregister/".length);
-      return this.handleDeregister(key);
-    }
+    try {
+      if (request.method === "GET" && path === "/list") {
+        return this.handleList();
+      }
+      if (request.method === "POST" && path === "/register") {
+        return this.handleRegister(request);
+      }
+      if (request.method === "GET" && path.startsWith("/lookup/")) {
+        const key = path.slice("/lookup/".length);
+        return this.handleLookup(key);
+      }
+      if (request.method === "DELETE" && path.startsWith("/deregister/")) {
+        const key = path.slice("/deregister/".length);
+        return this.handleDeregister(key);
+      }
 
-    return new Response("Not found", { status: 404 });
+      return new Response("Not found", { status: 404 });
+    } catch (err) {
+      logUnexpected("room index durable object unexpected error", err, {
+        method: request.method,
+        path,
+      });
+      return Response.json({ error: "Internal server error" }, { status: 500 });
+    }
   }
 
   private async handleList(): Promise<Response> {

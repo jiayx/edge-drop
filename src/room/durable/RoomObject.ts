@@ -6,6 +6,7 @@ import type {
   ClientMessage,
   ServerMessage,
 } from "@/room/types";
+import { logUnexpected } from "@/lib/errors";
 
 const MSG_KEY_PAD = 10;
 
@@ -34,18 +35,23 @@ export class RoomObject {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    if (request.headers.get("Upgrade") === "websocket") {
-      return this.handleWebSocketUpgrade(request, url);
-    }
+    try {
+      if (request.headers.get("Upgrade") === "websocket") {
+        return this.handleWebSocketUpgrade(request, url);
+      }
 
-    switch (path) {
-      case "/init":    return this.handleInit(request);
-      case "/extend":  return this.handleExtend(request);
-      case "/info":    return this.handleInfo();
-      case "/messages": return this.handleGetMessages(url);
-      case "/expire":  return this.handleExpire();
-      case "/purge":   return this.handlePurge();
-      default:         return new Response("Not found", { status: 404 });
+      switch (path) {
+        case "/init":    return this.handleInit(request);
+        case "/extend":  return this.handleExtend(request);
+        case "/info":    return this.handleInfo();
+        case "/messages": return this.handleGetMessages(url);
+        case "/expire":  return this.handleExpire();
+        case "/purge":   return this.handlePurge();
+        default:         return new Response("Not found", { status: 404 });
+      }
+    } catch (err) {
+      logUnexpected("room durable object unexpected error", err, { path });
+      return Response.json({ error: "Internal server error" }, { status: 500 });
     }
   }
 
