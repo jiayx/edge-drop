@@ -60,6 +60,8 @@ export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Resp
     })
   );
 
+  rooms.sort((a, b) => b.expiresAt - a.expiresAt);
+
   return c.json({ rooms });
 }
 
