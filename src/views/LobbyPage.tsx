@@ -1,10 +1,9 @@
 export interface LobbyPageProps {
-  error?: "expired" | "not-found";
+  error?: "unavailable";
 }
 
 const ERROR_MESSAGES: Record<NonNullable<LobbyPageProps["error"]>, string> = {
-  expired: "Room has expired.",
-  "not-found": "Room does not exist.",
+  unavailable: "Room is not available.",
 };
 
 export function LobbyPage(props: LobbyPageProps) {

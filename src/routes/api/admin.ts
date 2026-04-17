@@ -1,17 +1,20 @@
-import type { Context } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { parsePositiveInt } from "@/lib/fileSize";
 import type { RoomIndexEntry } from "@/room/types";
 import { lookupRoom, getRoomStub } from "@/room/store";
 
-// GET /api/v1/stats — internal stats, auth-gated
-export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response> {
-  const env = c.env;
+const requireAdminAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const authToken = c.req.header("X-Admin-Token");
-  if (authToken !== env.ADMIN_AUTH_TOKEN) {
+  if (authToken !== c.env.ADMIN_AUTH_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
+  await next();
+};
 
+// GET /api/v1/admin/stats — internal stats, auth-gated
+export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const env = c.env;
   const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
   const res = await indexStub.fetch("http://internal/list");
   const registry = await res.json<Record<string, RoomIndexEntry>>();
@@ -31,10 +34,6 @@ export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response>
 
 export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token");
-  if (authToken !== env.ADMIN_AUTH_TOKEN) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
 
   const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
   const res = await indexStub.fetch("http://internal/list");
@@ -66,10 +65,6 @@ export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Resp
 
 export async function getAdminRoomDetail(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token");
-  if (authToken !== env.ADMIN_AUTH_TOKEN) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
 
   const key = c.req.param("key");
   if (!key) return c.json({ error: "Room key required" }, 400);
@@ -92,10 +87,6 @@ export async function getAdminRoomDetail(c: Context<{ Bindings: Env }>): Promise
 
 export async function updateAdminRoomConfig(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token");
-  if (authToken !== env.ADMIN_AUTH_TOKEN) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
 
   const key = c.req.param("key");
   if (!key) return c.json({ error: "Room key required" }, 400);
@@ -127,9 +118,10 @@ export async function updateAdminRoomConfig(c: Context<{ Bindings: Env }>): Prom
   return c.json({ ok: true });
 }
 
-export const statsApi = new Hono<{ Bindings: Env }>();
+export const adminApi = new Hono<{ Bindings: Env }>();
 
-statsApi.get("/stats", getStats);
-statsApi.get("/admin/rooms", getAdminRooms);
-statsApi.get("/admin/rooms/:key", getAdminRoomDetail);
-statsApi.post("/admin/rooms/:key/config", updateAdminRoomConfig);
+adminApi.use("/admin/*", requireAdminAuth);
+adminApi.get("/admin/stats", getStats);
+adminApi.get("/admin/rooms", getAdminRooms);
+adminApi.get("/admin/rooms/:key", getAdminRoomDetail);
+adminApi.post("/admin/rooms/:key/config", updateAdminRoomConfig);

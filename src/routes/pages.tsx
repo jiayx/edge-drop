@@ -11,27 +11,27 @@ import { isExpired } from "@/lib/expiry";
 
 export function renderLobby(c: Context<{ Bindings: Env }>): Response | Promise<Response> {
   const error = c.req.query("error");
-  return c.html(<LobbyDocument error={error === "expired" || error === "not-found" ? error : undefined} />);
+  return c.html(<LobbyDocument error={error === "unavailable" ? error : undefined} />);
 }
 
 export async function renderRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const roomKey = c.req.param("key");
   if (!roomKey || !/^\d{6}$/.test(roomKey)) {
-    return c.redirect("/?error=not-found");
+    return c.redirect("/?error=unavailable");
   }
 
   const entry = await lookupRoom(c.env, roomKey);
   if (!entry) {
-    return c.redirect("/?error=not-found");
+    return c.redirect("/?error=unavailable");
   }
   if (isExpired(entry.expiresAt)) {
-    return c.redirect("/?error=expired");
+    return c.redirect("/?error=unavailable");
   }
 
   const roomStub = getRoomStub(c.env, entry.doId);
   const roomInfoRes = await roomStub.fetch("http://internal/info");
   if (!roomInfoRes.ok) {
-    return c.redirect("/?error=not-found");
+    return c.redirect("/?error=unavailable");
   }
   const roomInfo = await roomInfoRes.json<{ maxFileSizeMb?: unknown }>();
   const maxFileSizeMb = parsePositiveInt(roomInfo.maxFileSizeMb) ?? getDefaultMaxFileSizeMb(c.env);
@@ -39,7 +39,7 @@ export async function renderRoom(c: Context<{ Bindings: Env }>): Promise<Respons
   return c.html(<RoomDocument roomKey={roomKey} maxFileSizeMb={maxFileSizeMb} />);
 }
 
-function LobbyDocument(props: { error?: "expired" | "not-found" }) {
+function LobbyDocument(props: { error?: "unavailable" }) {
   return (
     <Layout
       title="Edge Drop"

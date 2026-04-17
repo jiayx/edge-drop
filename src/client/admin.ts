@@ -168,7 +168,7 @@ async function handleAuth(): Promise<void> {
 
   try {
     // Test the token by making a stats request
-    const response = await fetch("/api/v1/stats", {
+    const response = await fetch("/api/v1/admin/stats", {
       headers: { "X-Admin-Token": token },
     });
 
@@ -221,7 +221,7 @@ async function loadStats(): Promise<void> {
   if (!currentToken) return;
 
   try {
-    const response = await fetch("/api/v1/stats", {
+    const response = await fetch("/api/v1/admin/stats", {
       headers: { "X-Admin-Token": currentToken },
     });
 

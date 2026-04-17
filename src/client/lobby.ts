@@ -27,10 +27,8 @@ if (lobbyRoot) {
     applyThemePreference(themeViewport);
   });
 
-  if (initialError === "expired") {
-    showError("Room has expired.");
-  } else if (initialError === "not-found") {
-    showError("Room does not exist.");
+  if (initialError === "unavailable") {
+    showError("Room is not available.");
   }
 
   digitInputs.forEach((input, i) => {
@@ -97,8 +95,7 @@ if (lobbyRoot) {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/rooms/${key}`);
-      if (res.status === 404) throw new Error("Room does not exist.");
-      if (res.status === 410) throw new Error("Room has expired.");
+      if (res.status === 404) throw new Error("Room is not available.");
       if (!res.ok) throw new Error("Failed to join room");
       window.location.assign(roomUrl(key));
     } catch (err) {

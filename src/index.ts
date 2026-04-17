@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { handleScheduled } from "@/cron/cleanup";
 import { errorResponse, logUnexpected } from "@/lib/errors";
+import { adminApi } from "@/routes/api/admin";
 import { fileApi } from "@/routes/api/files";
 import { roomApi } from "@/routes/api/rooms";
-import { statsApi } from "@/routes/api/stats";
 import { websocketApi } from "@/routes/api/websocket";
 import { pageRoutes } from "@/routes/pages";
 
@@ -25,7 +25,7 @@ app.route("/", pageRoutes);
 app.route("/api/v1", roomApi);
 app.route("/api/v1", fileApi);
 app.route("/api/v1", websocketApi);
-app.route("/api/v1", statsApi);
+app.route("/api/v1", adminApi);
 
 app.notFound((c) => c.text("Not Found", 404));
 

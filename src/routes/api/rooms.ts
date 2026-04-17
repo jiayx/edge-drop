@@ -10,6 +10,17 @@ function param(c: Context<{ Bindings: Env }>, name: string): string {
   return c.req.param(name) ?? "";
 }
 
+function roomUnavailable(c: Context<{ Bindings: Env }>): Response {
+  return c.json({ error: "Room not available" }, 404);
+}
+
+async function enforceRoomProbeRateLimit(c: Context<{ Bindings: Env }>): Promise<Response | null> {
+  const rateLimitKey = c.req.raw.headers.get("CF-Connecting-IP") ?? "global";
+  const { success } = await c.env.ROOM_JOIN_RATE_LIMIT.limit({ key: rateLimitKey });
+  if (success) return null;
+  return c.json({ error: "Too many requests, please slow down" }, 429);
+}
+
 // POST /api/v1/rooms — create a new room
 export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
@@ -56,10 +67,11 @@ export async function getRoomInfo(c: Context<{ Bindings: Env }>): Promise<Respon
   const key = param(c, "key");
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
+  const rateLimited = await enforceRoomProbeRateLimit(c);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
-  if (!entry) return c.json({ error: "Room not found" }, 404);
-  if (isExpired(entry.expiresAt)) return c.json({ error: "Room expired" }, 410);
+  if (!entry || isExpired(entry.expiresAt)) return roomUnavailable(c);
 
   const stub = getRoomStub(env, entry.doId);
   const infoRes = await stub.fetch("http://internal/info");
@@ -77,14 +89,11 @@ export async function joinRoom(c: Context<{ Bindings: Env }>): Promise<Response>
   const key = param(c, "key");
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
-
-  // Rate limit check
-  const { success } = await env.ROOM_JOIN_RATE_LIMIT.limit({ key: c.req.raw.headers.get("CF-Connecting-IP") ?? "global" });
-  if (!success) return c.json({ error: "Too many requests, please slow down" }, 429);
+  const rateLimited = await enforceRoomProbeRateLimit(c);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
-  if (!entry) return c.json({ error: "Room not found" }, 404);
-  if (isExpired(entry.expiresAt)) return c.json({ error: "Room expired" }, 410);
+  if (!entry || isExpired(entry.expiresAt)) return roomUnavailable(c);
 
   const body = await c.req.json<{ userId: string; displayName: string }>();
 

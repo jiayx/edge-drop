@@ -128,7 +128,7 @@ export async function bootstrapRoomPage(): Promise<void> {
         appendSystemNotice(context, "Room has expired");
         context.state.ws?.close();
         setTimeout(() => {
-          window.location.replace(lobbyUrl("error=expired"));
+          window.location.replace(lobbyUrl("error=unavailable"));
         }, 3000);
         break;
 
@@ -173,12 +173,7 @@ export async function bootstrapRoomPage(): Promise<void> {
   });
 
   if (res.status === 404) {
-    window.location.replace(lobbyUrl("error=not-found"));
-    return;
-  }
-
-  if (res.status === 410) {
-    window.location.replace(lobbyUrl("error=expired"));
+    window.location.replace(lobbyUrl("error=unavailable"));
     return;
   }
 

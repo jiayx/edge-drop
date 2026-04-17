@@ -112,14 +112,14 @@ You should update at least:
 Internal stats endpoint:
 
 ```text
-GET /api/v1/stats
+GET /api/v1/admin/stats
 X-Admin-Token: <token>
 ```
 
 Example:
 
 ```bash
-curl -s http://127.0.0.1:5173/api/v1/stats \
+curl -s http://127.0.0.1:5173/api/v1/admin/stats \
   -H 'X-Admin-Token: your_token'
 ```
 
