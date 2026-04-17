@@ -88,13 +88,13 @@ Current bindings and vars:
   - `ROOM_TTL_HOURS`
   - `BLOCKED_MIME_TYPES`
 - Secret/auth var:
-  - `STATS_AUTH_TOKEN`
+  - `ADMIN_AUTH_TOKEN`
 
 You should update at least:
 
 - R2 bucket names
 - rate limit namespace
-- `STATS_AUTH_TOKEN`
+- `ADMIN_AUTH_TOKEN`
 
 ## Stats Endpoint
 
@@ -102,14 +102,14 @@ Internal stats endpoint:
 
 ```text
 GET /api/v1/stats
-X-Stats-Token: <token>
+X-Admin-Token: <token>
 ```
 
 Example:
 
 ```bash
 curl -s http://127.0.0.1:5173/api/v1/stats \
-  -H 'X-Stats-Token: your_token'
+  -H 'X-Admin-Token: your_token'
 ```
 
 ## Room Flow

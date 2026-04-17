@@ -7,8 +7,8 @@ import { lookupRoom, getRoomStub } from "@/room/store";
 // GET /api/v1/stats — internal stats, auth-gated
 export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Stats-Token");
-  if (authToken !== env.STATS_AUTH_TOKEN) {
+  const authToken = c.req.header("X-Admin-Token");
+  if (authToken !== env.ADMIN_AUTH_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -31,8 +31,8 @@ export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response>
 
 export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token") ?? c.req.header("X-Stats-Token");
-  if (authToken !== env.STATS_AUTH_TOKEN) {
+  const authToken = c.req.header("X-Admin-Token");
+  if (authToken !== env.ADMIN_AUTH_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -66,8 +66,8 @@ export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Resp
 
 export async function getAdminRoomDetail(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token") ?? c.req.header("X-Stats-Token");
-  if (authToken !== env.STATS_AUTH_TOKEN) {
+  const authToken = c.req.header("X-Admin-Token");
+  if (authToken !== env.ADMIN_AUTH_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -92,8 +92,8 @@ export async function getAdminRoomDetail(c: Context<{ Bindings: Env }>): Promise
 
 export async function updateAdminRoomConfig(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const authToken = c.req.header("X-Admin-Token") ?? c.req.header("X-Stats-Token");
-  if (authToken !== env.STATS_AUTH_TOKEN) {
+  const authToken = c.req.header("X-Admin-Token");
+  if (authToken !== env.ADMIN_AUTH_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 

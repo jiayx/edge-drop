@@ -14,5 +14,5 @@ interface Env {
   MAX_FILE_SIZE_MB: string;
   ROOM_TTL_HOURS: string;
   BLOCKED_MIME_TYPES: string;
-  STATS_AUTH_TOKEN: string;
+  ADMIN_AUTH_TOKEN: string;
 }
