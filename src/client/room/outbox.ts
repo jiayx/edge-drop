@@ -382,6 +382,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
   const bindComposer = (): void => {
     context.dom.sendBtn?.addEventListener("click", sendText);
     context.dom.messageInput?.addEventListener("keydown", (e: KeyboardEvent) => {
+      if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendText();

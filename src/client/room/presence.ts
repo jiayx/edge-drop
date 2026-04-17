@@ -88,6 +88,7 @@ export function setupRename(
 
   selfNameInput?.addEventListener("blur", commitRename);
   selfNameInput?.addEventListener("keydown", (e: KeyboardEvent) => {
+    if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
     if (e.key === "Enter") commitRename();
     if (e.key === "Escape") cancelRename();
   });

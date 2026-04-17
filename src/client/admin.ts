@@ -123,7 +123,8 @@ function init(): void {
 
   // Event listeners
   authSubmitBtn?.addEventListener("click", handleAuth);
-  tokenInput?.addEventListener("keypress", (e) => {
+  tokenInput?.addEventListener("keydown", (e: KeyboardEvent) => {
+    if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
     if (e.key === "Enter") handleAuth();
   });
 
