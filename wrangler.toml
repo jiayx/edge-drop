@@ -1,7 +1,8 @@
 name = "drop"
 main = "src/index.ts"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-04-17"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
 
 [observability]
 enabled = false
@@ -37,6 +38,6 @@ crons = ["0 * * * *"]
 name = "ROOM_JOIN_RATE_LIMIT"
 namespace_id = "1001"
 
-  [ratelimits.simple]
-  limit = 10
-  period = 60
+[ratelimits.simple]
+limit = 10
+period = 60

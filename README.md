@@ -70,28 +70,33 @@ pnpm build
 pnpm run deploy
 ```
 
+The deploy script reads `.env.prod` by default. Values in `.env.prod` override
+`[vars]` in [`wrangler.toml`](./wrangler.toml).
+
+You can also override the env file:
+
+```bash
+pnpm run deploy -- .env.staging
+```
+
+To bypass the sync step and run Wrangler directly:
+
+```bash
+pnpm run deploy:raw
+```
+
 ## Configuration
 
 Main config lives in [`wrangler.toml`](./wrangler.toml).
 
 Current bindings and vars:
 
-- Durable Objects:
-  - `ROOMS`
-  - `ROOM_INDEX`
-- Rate limit:
-  - `ROOM_JOIN_RATE_LIMIT`
-- Vars:
-  - `MAX_FILE_SIZE_MB`
-  - `ROOM_TTL_HOURS`
-  - `BLOCKED_MIME_TYPES`
-- Secret/auth var:
-  - `ADMIN_AUTH_TOKEN`
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-- Additional R2 vars:
-  - `R2_ACCOUNT_ID`
-  - `R2_BUCKET_NAME`
+- Durable Objects: `ROOMS`, `ROOM_INDEX`
+- Rate limit: `ROOM_JOIN_RATE_LIMIT`
+- Default vars in `wrangler.toml`: `MAX_FILE_SIZE_MB`, `ROOM_TTL_HOURS`, `BLOCKED_MIME_TYPES`
+- Required deploy vars from `.env.prod` unless you also hardcode them into `wrangler.toml`:
+  `ADMIN_AUTH_TOKEN`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`
 
 You should update at least:
 
