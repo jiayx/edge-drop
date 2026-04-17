@@ -9,6 +9,8 @@ export interface UploadResult {
 
 interface UploadResponse {
   objectKey: string;
+  uploadUrl: string;
+  uploadHeaders: Record<string, string>;
 }
 
 interface UploadErrorResponse {
@@ -23,8 +25,29 @@ export async function uploadFile(opts: {
 }): Promise<UploadResult> {
   const { roomKey, file, onProgress, signal } = opts;
   const mimeType = file.type || "application/octet-stream";
+  const metadataRes = await fetch(`/api/v1/rooms/${roomKey}/files`, {
+    method: "POST",
+    headers: {
+      "Content-Type": mimeType,
+      "X-File-Name": encodeURIComponent(file.name),
+      "X-File-Size": String(file.size),
+    },
+    signal,
+  });
 
-  const objectKey = await new Promise<string>((resolve, reject) => {
+  if (!metadataRes.ok) {
+    try {
+      const err = await metadataRes.json() as UploadErrorResponse;
+      throw new Error(err.error || `Upload failed with status ${metadataRes.status}`);
+    } catch (err) {
+      if (err instanceof Error) throw err;
+      throw new Error(`Upload failed with status ${metadataRes.status}`);
+    }
+  }
+
+  const { objectKey, uploadUrl, uploadHeaders } = await metadataRes.json() as UploadResponse;
+
+  await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const abortUpload = (): void => {
       xhr.abort();
@@ -38,10 +61,10 @@ export async function uploadFile(opts: {
 
     signal?.addEventListener("abort", abortUpload, { once: true });
 
-    xhr.open("POST", `/api/v1/rooms/${roomKey}/files`);
-    xhr.setRequestHeader("Content-Type", mimeType);
-    xhr.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
-    xhr.setRequestHeader("X-File-Size", String(file.size));
+    xhr.open("PUT", uploadUrl);
+    Object.entries(uploadHeaders).forEach(([name, value]) => {
+      xhr.setRequestHeader(name, value);
+    });
 
     xhr.upload.onprogress = (e: ProgressEvent) => {
       if (e.lengthComputable) {
@@ -52,19 +75,9 @@ export async function uploadFile(opts: {
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         onProgress?.(100);
-        try {
-          const data = JSON.parse(xhr.responseText) as UploadResponse;
-          resolve(data.objectKey);
-        } catch {
-          reject(new Error("Upload response was invalid"));
-        }
+        resolve();
       } else {
-        try {
-          const err = JSON.parse(xhr.responseText) as UploadErrorResponse;
-          reject(new Error(err.error || `Upload failed with status ${xhr.status}`));
-        } catch {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
-        }
+        reject(new Error(`Upload failed with status ${xhr.status}`));
       }
     };
 

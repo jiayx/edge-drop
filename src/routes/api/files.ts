@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { isValidRoomKey } from "@/lib/roomKey";
 import { isExpired } from "@/lib/expiry";
 import { getDefaultMaxFileSizeMb, parsePositiveInt } from "@/lib/fileSize";
-import { putObject, deleteObjects } from "@/lib/r2";
+import { createPresignedUpload, decodeOriginalFileName, deleteObjects, fetchObject } from "@/lib/r2";
 import { getRoomStub, lookupRoom } from "@/room/store";
 
 function param(c: Context<{ Bindings: Env }>, name: string): string {
@@ -12,6 +12,7 @@ function param(c: Context<{ Bindings: Env }>, name: string): string {
 
 const BLOCKED_EXTENSIONS = new Set([".exe", ".bat", ".sh", ".cmd", ".msi", ".dll", ".scr", ".com", ".pif"]);
 const MAX_OBJECT_KEY_LEN = 512;
+const PRESIGNED_UPLOAD_TTL_SECONDS = 15 * 60;
 
 function getExtension(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
@@ -43,13 +44,8 @@ function buildContentDisposition(disposition: "inline" | "attachment", fileName:
   return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${utf8Name}`;
 }
 
-function isClientDisconnectError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  return err.message.includes("Network connection lost.");
-}
-
 // POST /api/v1/rooms/:key/files
-export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Response> {
+export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
   const key = param(c, "key");
 
@@ -95,8 +91,6 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
     return c.json({ error: "File extension not allowed" }, 400);
   }
 
-  // Build an opaque object key. Keep the extension for content sniffing/debuggability,
-  // but avoid embedding the original file name in storage paths or URLs.
   const ts = Date.now();
   const objectKey = `rooms/${key}/${ts}-${crypto.randomUUID()}${ext}`;
 
@@ -104,47 +98,19 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
     return c.json({ error: "File name too long" }, 400);
   }
 
-  try {
-    await putObject(env, objectKey, c.req.raw.body, {
-      contentType: mimeType,
-      contentDisposition: buildContentDisposition("inline", fileName),
-      customMetadata: {
-        originalFileName: fileName,
-      },
-    });
-  } catch (err) {
-    if (isClientDisconnectError(err)) {
-      console.log(`[edge-drop] upload canceled by client: room=${key} object=${objectKey}`);
-      return c.json({ error: "Upload canceled" }, 499);
-    }
-    throw err;
-  }
+  const directUpload = await createPresignedUpload(env, {
+    objectKey,
+    mimeType,
+    contentDisposition: buildContentDisposition("inline", fileName),
+    originalFileName: fileName,
+    expiresInSeconds: PRESIGNED_UPLOAD_TTL_SECONDS,
+  });
 
-  return c.json({ objectKey });
-}
-
-// Parse a "bytes=start-end" Range header. Returns null if absent or unparseable.
-function parseRange(rangeHeader: string | null, totalSize: number): { start: number; end: number } | null {
-  if (!rangeHeader) return null;
-  const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
-  if (!m) return null;
-  const rawStart = m[1] ?? "";
-  const rawEnd = m[2] ?? "";
-  let start: number;
-  let end: number;
-  if (rawStart === "" && rawEnd !== "") {
-    // suffix range: bytes=-500  →  last 500 bytes
-    const suffix = parseInt(rawEnd, 10);
-    start = Math.max(0, totalSize - suffix);
-    end = totalSize - 1;
-  } else {
-    start = rawStart !== "" ? parseInt(rawStart, 10) : 0;
-    end = rawEnd !== "" ? parseInt(rawEnd, 10) : totalSize - 1;
-  }
-  if (isNaN(start) || isNaN(end) || start < 0 || start >= totalSize) return null;
-  end = Math.min(end, totalSize - 1);
-  if (start > end) return null;
-  return { start, end };
+  return c.json({
+    objectKey,
+    uploadUrl: directUpload.uploadUrl,
+    uploadHeaders: directUpload.uploadHeaders,
+  });
 }
 
 // GET /api/v1/rooms/:key/files/:objectKey — stream file from R2 through Worker
@@ -167,41 +133,39 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
     return c.json({ error: "Forbidden" }, 403);
   }
 
-  const rangeHeader = c.req.header("Range") ?? null;
-
-  // First fetch metadata to know the total size, then fetch with range if needed.
-  const head = await env.FILE_BUCKET.head(objectKey);
-  if (!head) return c.json({ error: "File not found" }, 404);
-
-  const totalSize = head.size;
-  const range = parseRange(rangeHeader, totalSize);
-
-  const fileName = head.customMetadata?.originalFileName || "file";
-  const headers = new Headers();
-  head.writeHttpMetadata(headers);
-  headers.set("etag", head.httpEtag);
-  headers.set("accept-ranges", "bytes");
-  headers.set("cache-control", "private, max-age=60");
-  headers.set("content-disposition", buildContentDisposition("inline", fileName));
-
-  if (range) {
-    const object = await env.FILE_BUCKET.get(objectKey, {
-      range: {
-        offset: range.start,
-        length: range.end - range.start + 1,
-      },
-    });
-    if (!object) return c.json({ error: "File not found" }, 404);
-    const chunkSize = range.end - range.start + 1;
-    headers.set("content-range", `bytes ${range.start}-${range.end}/${totalSize}`);
-    headers.set("content-length", String(chunkSize));
-    return new Response((object as R2ObjectBody).body, { status: 206, headers });
+  const upstream = await fetchObject(env, objectKey, { range: c.req.header("Range") });
+  if (upstream.status === 404) return c.json({ error: "File not found" }, 404);
+  if (!upstream.ok && upstream.status !== 206) {
+    return c.json({ error: "Failed to fetch file" }, 502);
   }
 
-  const object = await env.FILE_BUCKET.get(objectKey);
-  if (!object) return c.json({ error: "File not found" }, 404);
-  headers.set("content-length", String(totalSize));
-  return new Response((object as R2ObjectBody).body, { status: 200, headers });
+  const headers = new Headers();
+  const passThroughHeaders = [
+    "accept-ranges",
+    "cache-control",
+    "content-disposition",
+    "content-length",
+    "content-range",
+    "content-type",
+    "etag",
+    "last-modified",
+  ];
+  for (const name of passThroughHeaders) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  if (!headers.has("cache-control")) {
+    headers.set("cache-control", "private, max-age=60");
+  }
+  if (!headers.has("accept-ranges")) {
+    headers.set("accept-ranges", "bytes");
+  }
+  const originalFileName = decodeOriginalFileName(upstream.headers.get("x-amz-meta-originalfilename") ?? undefined);
+  if (!headers.has("content-disposition")) {
+    headers.set("content-disposition", buildContentDisposition("inline", originalFileName));
+  }
+
+  return new Response(upstream.body, { status: upstream.status, headers });
 }
 
 // DELETE /api/v1/rooms/:key/files/:objectKey
@@ -225,6 +189,6 @@ export async function deleteFile(c: Context<{ Bindings: Env }>): Promise<Respons
 
 export const fileApi = new Hono<{ Bindings: Env }>();
 
-fileApi.post("/rooms/:key/files", uploadFile);
+fileApi.post("/rooms/:key/files", createDirectUpload);
 fileApi.get("/rooms/:key/files/:objectKey{.+}", downloadFile);
 fileApi.delete("/rooms/:key/files/:objectKey{.+}", deleteFile);

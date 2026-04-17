@@ -30,11 +30,6 @@ class_name = "RoomIndexObject"
 tag = "v1"
 new_sqlite_classes = ["RoomObject", "RoomIndexObject"]
 
-[[r2_buckets]]
-binding = "FILE_BUCKET"
-bucket_name = "edge-drop-files"
-preview_bucket_name = "edge-drop-files-dev"
-
 [triggers]
 crons = ["0 * * * *"]
 
