@@ -2,13 +2,7 @@ export interface LobbyPageProps {
   error?: "unavailable";
 }
 
-const ERROR_MESSAGES: Record<NonNullable<LobbyPageProps["error"]>, string> = {
-  unavailable: "Room is not available.",
-};
-
 export function LobbyPage(props: LobbyPageProps) {
-  const errorMessage = props.error ? ERROR_MESSAGES[props.error] : "";
-
   return (
     <div id="lobby-page" class="lobby">
       <div class="lobby-card">
@@ -32,9 +26,9 @@ export function LobbyPage(props: LobbyPageProps) {
         <div
           id="error-banner"
           class="error-banner"
-          style={props.error ? undefined : "display:none"}
+          style="display:none"
         >
-          {errorMessage}
+          {props.error ? "Room is not available." : ""}
         </div>
 
         <div class="lobby-actions">

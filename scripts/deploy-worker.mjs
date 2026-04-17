@@ -1,5 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
@@ -26,36 +25,23 @@ async function main() {
   const cwd = process.cwd();
   const envFile = parseCliArgs(process.argv.slice(2));
   const envPath = path.resolve(cwd, envFile);
-  const wranglerPath = path.resolve(cwd, "wrangler.toml");
+  const builtConfigPath = path.resolve(cwd, "dist/client/drop/wrangler.json");
 
-  const [envValues, wranglerText] = await Promise.all([
+  const [envValues, builtConfig] = await Promise.all([
     loadEnvFile(envPath),
-    readFile(wranglerPath, "utf8"),
+    loadBuiltConfig(builtConfigPath),
   ]);
 
-  const baseVars = readTomlVars(wranglerText);
   const envOverrides = pickVars(envValues, DEPLOY_VAR_NAMES);
-  const deployVars = { ...baseVars, ...envOverrides };
+  const deployVars = { ...(builtConfig.vars ?? {}), ...envOverrides };
   validateRequired(deployVars, REQUIRED_DEPLOY_VAR_NAMES, "deploy vars");
 
-  await run("pnpm", ["build"], { cwd, env: process.env });
-
-  const tempDir = await mkdtemp(path.join(tmpdir(), "edge-drop-deploy-"));
-  try {
-    const tempConfigPath = path.join(tempDir, "wrangler.deploy.toml");
-    const deployConfig = buildDeployConfig(wranglerText, deployVars, cwd);
-    await writeFile(tempConfigPath, deployConfig);
-    await run(
-      "pnpm",
-      ["exec", "wrangler", "deploy", "--cwd", cwd, "--config", tempConfigPath],
-      {
-        cwd,
-        env: process.env,
-      },
-    );
-  } finally {
-    await rm(tempDir, { recursive: true, force: true });
-  }
+  const deployConfig = { ...builtConfig, vars: deployVars };
+  await writeFile(builtConfigPath, `${JSON.stringify(deployConfig, null, 2)}\n`);
+  await run("pnpm", ["exec", "wrangler", "deploy"], {
+    cwd,
+    env: process.env,
+  });
 }
 
 function parseCliArgs(args) {
@@ -73,6 +59,15 @@ function parseCliArgs(args) {
   return envFile;
 }
 
+async function loadBuiltConfig(filePath) {
+  const text = await readFile(filePath, "utf8");
+  const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Invalid built Wrangler config: ${filePath}`);
+  }
+  return parsed;
+}
+
 function pickVars(envValues, names) {
   const selected = {};
   for (const name of names) {
@@ -87,56 +82,6 @@ function validateRequired(selected, names, label) {
   if (missing.length) {
     throw new Error(`Missing ${label}: ${missing.join(", ")}`);
   }
-}
-
-function buildDeployConfig(wranglerText, deployVars, rootDir) {
-  const normalizedConfig = normalizeConfigPaths(wranglerText, rootDir);
-  const withoutVars = normalizedConfig.replace(
-    /\n\[vars\]\n(?:.*\n)*(?=\n\[[^\]]+\]|\n\[\[[^\]]+\]\]|$)/m,
-    "\n",
-  );
-  const varsBlock = [
-    "[vars]",
-    ...Object.entries(deployVars).map(([key, value]) => `${key} = ${JSON.stringify(value)}`),
-    "",
-  ].join("\n");
-  return `${withoutVars.trimEnd()}\n\n${varsBlock}`;
-}
-
-function normalizeConfigPaths(wranglerText, rootDir) {
-  return wranglerText
-    .replace(/^main\s*=\s*(".*?"|'.*?')\s*$/m, (line, rawValue) => {
-      return `main = ${JSON.stringify(resolveConfigPath(rawValue, rootDir))}`;
-    })
-    .replace(/^directory\s*=\s*(".*?"|'.*?')\s*$/m, (line, rawValue) => {
-      return `directory = ${JSON.stringify(resolveConfigPath(rawValue, rootDir))}`;
-    });
-}
-
-function resolveConfigPath(rawValue, rootDir) {
-  const value = unquote(rawValue);
-  if (!value || path.isAbsolute(value)) return value;
-  return path.resolve(rootDir, value);
-}
-
-function readTomlVars(wranglerText) {
-  const match = wranglerText.match(/(?:^|\n)\[vars\]\n((?:.*\n)*?)(?=\n\[[^\]]+\]|\n\[\[[^\]]+\]\]|$)/m);
-  if (!match) return {};
-
-  const values = {};
-  for (const rawLine of match[1].split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex === -1) continue;
-
-    const key = line.slice(0, separatorIndex).trim();
-    const rawValue = line.slice(separatorIndex + 1).trim();
-    values[key] = unquote(rawValue);
-  }
-
-  return values;
 }
 
 async function loadEnvFile(filePath) {

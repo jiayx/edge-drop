@@ -21,6 +21,7 @@ if (lobbyRoot) {
   const errorBanner = document.getElementById("error-banner") as HTMLDivElement | null;
   const initialError = new URLSearchParams(window.location.search).get("error");
   const themeViewport = window.matchMedia("(prefers-color-scheme: dark)");
+  let errorHideTimer: number | null = null;
 
   applyThemePreference(themeViewport);
   themeViewport.addEventListener("change", () => {
@@ -107,9 +108,15 @@ if (lobbyRoot) {
 
   function showError(msg: string): void {
     if (errorBanner) {
+      if (errorHideTimer !== null) {
+        window.clearTimeout(errorHideTimer);
+      }
       errorBanner.textContent = msg;
       errorBanner.style.display = "block";
-      setTimeout(() => { errorBanner.style.display = "none"; }, 4000);
+      errorHideTimer = window.setTimeout(() => {
+        errorBanner.style.display = "none";
+        errorHideTimer = null;
+      }, 4000);
     }
   }
 
