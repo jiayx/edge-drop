@@ -1,6 +1,6 @@
 import type { Message, ServerMessage } from "@/room/types";
 
-import { createRoomDom, getRoomKey, getRoomRoot } from "./dom";
+import { createRoomDom, getRoomKey, getRoomMaxFileSizeMb, getRoomRoot } from "./dom";
 import { createRoomHeaderController } from "./header";
 import { getOrCreateIdentity } from "./identity";
 import {
@@ -46,15 +46,23 @@ async function loadMoreHistory(context: RoomPageContext): Promise<void> {
 export async function bootstrapRoomPage(): Promise<void> {
   const roomRoot = getRoomRoot();
   const roomKey = getRoomKey(roomRoot);
+  const maxFileSizeMb = getRoomMaxFileSizeMb(roomRoot);
   const identity = getOrCreateIdentity(roomKey);
   const dom = createRoomDom();
   const state = createRoomPageState();
-  const context: RoomPageContext = { roomKey, identity, dom, state };
-
-  const header = createRoomHeaderController(context);
-  bindMessageListScroll(context);
+  const context: RoomPageContext = {
+    roomKey,
+    maxFileSizeBytes: maxFileSizeMb * 1024 * 1024,
+    maxFileSizeLabel: `${maxFileSizeMb} MB`,
+    identity,
+    dom,
+    state,
+  };
 
   const appendLocalSystemNotice = (text: string): void => appendSystemNotice(context, text);
+  const header = createRoomHeaderController(context, { appendLocalSystemNotice });
+  bindMessageListScroll(context);
+
   const { applyRename } = setupRename(context, appendLocalSystemNotice);
   const outbox = createOutbox(context, {
     appendLocalSystemNotice,
@@ -104,6 +112,12 @@ export async function bootstrapRoomPage(): Promise<void> {
 
       case "room:extended":
         header.setExpiresAt(msg.expiresAt);
+        break;
+
+      case "room:config-updated":
+        context.maxFileSizeBytes = msg.maxFileSizeMb * 1024 * 1024;
+        context.maxFileSizeLabel = `${msg.maxFileSizeMb} MB`;
+        appendLocalSystemNotice(`File size limit updated to ${context.maxFileSizeLabel}`);
         break;
 
       case "room:expiring":

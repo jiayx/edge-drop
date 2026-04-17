@@ -48,6 +48,8 @@ export interface RoomPageState {
 
 export interface RoomPageContext {
   roomKey: string;
+  maxFileSizeBytes: number;
+  maxFileSizeLabel: string;
   identity: Identity;
   dom: RoomDom;
   state: RoomPageState;

@@ -74,7 +74,10 @@ export interface RoomHeaderController {
   setExpiresAt: (expiresAt: number) => void;
 }
 
-export function createRoomHeaderController(context: RoomPageContext): RoomHeaderController {
+export function createRoomHeaderController(
+  context: RoomPageContext,
+  deps: { appendLocalSystemNotice: (text: string) => void }
+): RoomHeaderController {
   const setExpiresAt = (expiresAt: number): void => {
     context.state.expiresAt = expiresAt;
     startCountdown(context);
@@ -106,7 +109,7 @@ export function createRoomHeaderController(context: RoomPageContext): RoomHeader
         const data = await res.json() as { ok: boolean; expiresAt: number };
         setExpiresAt(data.expiresAt);
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to extend room");
+        deps.appendLocalSystemNotice(err instanceof Error ? err.message : "Failed to extend room");
       } finally {
         if (extendBtn) extendBtn.disabled = false;
       }

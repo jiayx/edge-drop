@@ -1,4 +1,4 @@
-/* app.css — edge-drop styles */
+/* app.css — front-end page styles */
 
 *,
 *::before,
@@ -88,6 +88,7 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }
@@ -173,22 +174,27 @@ a:hover {
   cursor: pointer;
   transition: opacity 0.15s;
 }
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .btn-primary {
   background: var(--accent);
   color: var(--primary-contrast);
 }
+
 .btn-primary:hover:not(:disabled) {
   opacity: 0.85;
 }
+
 .btn-secondary {
   background: var(--surface2);
   color: var(--text);
   border: 1px solid var(--border);
 }
+
 .btn-secondary:hover:not(:disabled) {
   border-color: var(--accent);
 }

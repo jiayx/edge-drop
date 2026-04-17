@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { generateRoomKey, isValidRoomKey } from "@/lib/roomKey";
 import { roomTtlMs, isExpired } from "@/lib/expiry";
+import { getDefaultMaxFileSizeMb } from "@/lib/fileSize";
 import type { RoomIndexEntry } from "@/room/types";
 import { getRoomIndexStub, getRoomStub, lookupRoom } from "@/room/store";
 
@@ -14,6 +15,7 @@ export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Respons
   const env = c.env;
   const ttlHours = parseInt(env.ROOM_TTL_HOURS, 10);
   const expiresAt = Date.now() + roomTtlMs(ttlHours);
+  const maxFileSizeMb = getDefaultMaxFileSizeMb(env);
 
   // Generate a unique key (retry on collision)
   let roomKey: string;
@@ -33,7 +35,7 @@ export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Respons
 
   await stub.fetch("http://internal/init", {
     method: "POST",
-    body: JSON.stringify({ roomKey, expiresAt, r2Prefix }),
+    body: JSON.stringify({ roomKey, expiresAt, r2Prefix, maxFileSizeMb }),
     headers: { "Content-Type": "application/json" },
   });
 
@@ -45,7 +47,7 @@ export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Respons
     headers: { "Content-Type": "application/json" },
   });
 
-  return c.json({ roomKey, expiresAt });
+  return c.json({ roomKey, expiresAt, maxFileSizeMb });
 }
 
 // GET /api/v1/rooms/:key — get room info

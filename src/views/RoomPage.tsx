@@ -1,10 +1,16 @@
 export interface RoomPageProps {
   roomKey: string;
+  maxFileSizeMb: number;
 }
 
 export function RoomPage(props: RoomPageProps) {
   return (
-    <div id="room-page" class="room-layout" data-room-key={props.roomKey}>
+    <div
+      id="room-page"
+      class="room-layout"
+      data-room-key={props.roomKey}
+      data-max-file-size-mb={String(props.maxFileSizeMb)}
+    >
       <header class="room-header">
         <div id="room-key" class="room-key-display" title="Click to copy">
           {props.roomKey}

@@ -1,0 +1,718 @@
+/* admin.css — admin-only styles */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3350;
+  --accent: #6c8ef7;
+  --accent-dim: #3d52a0;
+  --text: #e4e8f0;
+  --text-dim: #8b93b0;
+  --text-on-accent: #b8cbff;
+  --primary-contrast: #fff;
+  --danger: #f75a5a;
+  --warn: #f7c35a;
+  --success: #4caf7f;
+  --danger-soft: rgba(247, 90, 90, 0.15);
+  --presence-divider: rgba(139, 147, 176, 0.28);
+  --media-backdrop: #000;
+  --warn-contrast: #1a1200;
+  --radius: 12px;
+  --radius-sm: 6px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #f4f7fb;
+    --surface: #ffffff;
+    --surface2: #eef3fb;
+    --border: #d8e1ef;
+    --accent: #2f61d8;
+    --accent-dim: #dfe9ff;
+    --text: #172033;
+    --text-dim: #69758c;
+    --text-on-accent: #21439a;
+    --primary-contrast: #ffffff;
+    --danger: #d94c4c;
+    --warn: #b7791f;
+    --success: #2f8f5b;
+    --danger-soft: rgba(217, 76, 76, 0.12);
+    --presence-divider: rgba(105, 117, 140, 0.22);
+    --media-backdrop: #0f1117;
+    --warn-contrast: #fff7e8;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface2: #eef3fb;
+  --border: #d8e1ef;
+  --accent: #2f61d8;
+  --accent-dim: #dfe9ff;
+  --text: #172033;
+  --text-dim: #69758c;
+  --text-on-accent: #21439a;
+  --primary-contrast: #ffffff;
+  --danger: #d94c4c;
+  --warn: #b7791f;
+  --success: #2f8f5b;
+  --danger-soft: rgba(217, 76, 76, 0.12);
+  --presence-divider: rgba(105, 117, 140, 0.22);
+  --media-backdrop: #0f1117;
+  --warn-contrast: #fff7e8;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.btn {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--primary-contrast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.error-banner {
+  display: none;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 1fr;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.admin-sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1.5rem 1rem;
+  gap: 1.5rem;
+}
+
+.admin-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-logo span {
+  color: var(--accent);
+}
+
+.admin-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.admin-nav-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.admin-nav-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.admin-nav-icon {
+  font-size: 1.1rem;
+}
+
+.admin-sidebar-footer {
+  margin-top: auto;
+}
+
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.admin-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-auth-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 2rem;
+}
+
+.admin-auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-auth-card h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.admin-auth-card p {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.admin-auth-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  width: 100%;
+}
+
+.admin-auth-input:focus {
+  border-color: var(--accent);
+}
+
+.admin-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.admin-section {
+  max-width: 1200px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.admin-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.system-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.system-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.system-info-item:last-child {
+  border-bottom: none;
+}
+
+.system-info-label {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.system-info-value {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.rooms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rooms-filters {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.admin-select,
+.admin-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+}
+
+.admin-select:focus,
+.admin-input:focus {
+  border-color: var(--accent);
+}
+
+.admin-input {
+  min-width: 200px;
+}
+
+.rooms-table-container {
+  overflow-x: auto;
+}
+
+.rooms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.rooms-table th,
+.rooms-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.rooms-table th {
+  font-weight: 600;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--surface2);
+}
+
+.rooms-table tbody tr:hover {
+  background: var(--surface2);
+}
+
+.rooms-empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 2rem;
+}
+
+.room-key {
+  font-family: monospace;
+  background: var(--surface2);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.status-active {
+  background: rgba(76, 175, 127, 0.15);
+  color: var(--success);
+}
+
+.status-badge.status-expired {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-name {
+  font-weight: 600;
+}
+
+.setting-desc {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.drawer-overlay {
+  display: contents;
+}
+
+.drawer-backdrop {
+  display: none;
+}
+
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100dvh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  animation: drawerSlideIn 0.2s ease-out;
+}
+
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.drawer-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.admin-main:has(#room-detail-drawer[style*="block"]) {
+  margin-right: 380px;
+}
+
+.drawer-section {
+  margin-bottom: 1.5rem;
+}
+
+.drawer-section h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+.room-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.room-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.room-info-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.config-form {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.config-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.users-list .user-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+}
+
+.users-list .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.users-list .user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.users-list .user-name {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.users-list .user-meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.text-dim {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .admin-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .admin-nav {
+    flex-direction: row;
+    flex: 1;
+  }
+
+  .admin-sidebar-footer {
+    display: none;
+  }
+
+  .rooms-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rooms-filters {
+    flex-direction: column;
+  }
+
+  .admin-input {
+    min-width: auto;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-panel {
+    max-width: 100%;
+  }
+}

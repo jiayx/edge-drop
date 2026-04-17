@@ -36,6 +36,15 @@ export function getRoomKey(roomRoot: HTMLElement): string {
   return roomKey;
 }
 
+export function getRoomMaxFileSizeMb(roomRoot: HTMLElement): number {
+  const rawValue = roomRoot.dataset.maxFileSizeMb ?? "";
+  const maxFileSizeMb = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(maxFileSizeMb) || maxFileSizeMb <= 0) {
+    return 100;
+  }
+  return maxFileSizeMb;
+}
+
 export function createRoomDom(): RoomDom {
   return {
     roomKeyEl: document.getElementById("room-key"),

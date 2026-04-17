@@ -47,6 +47,7 @@ export class RoomObject {
         case "/messages": return this.handleGetMessages(url);
         case "/expire":  return this.handleExpire();
         case "/purge":   return this.handlePurge();
+        case "/config":  return this.handleConfig(request);
         default:         return new Response("Not found", { status: 404 });
       }
     } catch (err) {
@@ -226,7 +227,7 @@ export class RoomObject {
   // ── Internal REST handlers ────────────────────────────────────────────────
 
   private async handleInit(request: Request): Promise<Response> {
-    const body = await request.json<{ roomKey: string; expiresAt: number; r2Prefix: string }>();
+    const body = await request.json<{ roomKey: string; expiresAt: number; r2Prefix: string; maxFileSizeMb: number }>();
     await this.state.blockConcurrencyWhile(async () => {
       const existing = await this.state.storage.get<RoomMeta>("meta");
       if (!existing) {
@@ -235,6 +236,7 @@ export class RoomObject {
           createdAt: Date.now(),
           expiresAt: body.expiresAt,
           r2Prefix: body.r2Prefix,
+          maxFileSizeMb: body.maxFileSizeMb,
           status: "active",
         };
         await this.state.storage.put("meta", meta);
@@ -298,6 +300,31 @@ export class RoomObject {
   private async handlePurge(): Promise<Response> {
     await this.state.storage.deleteAll();
     return Response.json({ ok: true });
+  }
+
+  private async handleConfig(request: Request): Promise<Response> {
+    if (request.method !== "POST") {
+      return new Response("Method not allowed", { status: 405 });
+    }
+    const body = await request.json<{ maxFileSizeMb?: unknown }>();
+    const meta = await this.state.storage.get<RoomMeta>("meta");
+    if (!meta) return new Response("Room not initialized", { status: 400 });
+
+    if (body.maxFileSizeMb !== undefined) {
+      const nextMaxFileSizeMb =
+        typeof body.maxFileSizeMb === "number" && Number.isInteger(body.maxFileSizeMb)
+          ? body.maxFileSizeMb
+          : Number.NaN;
+      if (!Number.isFinite(nextMaxFileSizeMb) || nextMaxFileSizeMb < 1) {
+        return Response.json({ error: "Invalid max file size" }, { status: 400 });
+      }
+      meta.maxFileSizeMb = nextMaxFileSizeMb;
+    }
+
+    await this.state.storage.put("meta", meta);
+    const configMsg: ServerMessage = { type: "room:config-updated", maxFileSizeMb: meta.maxFileSizeMb };
+    this.broadcastAll(configMsg);
+    return Response.json({ ok: true, maxFileSizeMb: meta.maxFileSizeMb });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

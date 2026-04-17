@@ -6,6 +6,7 @@ export interface RoomMeta {
   createdAt: number;
   expiresAt: number;
   r2Prefix: string;
+  maxFileSizeMb: number;
   status: RoomStatus;
 }
 
@@ -96,6 +97,11 @@ export interface SvRoomExtended {
   expiresAt: number;
 }
 
+export interface SvRoomConfigUpdated {
+  type: "room:config-updated";
+  maxFileSizeMb: number;
+}
+
 export interface SvRoomExpiring {
   type: "room:expiring";
   minutesLeft: number;
@@ -125,6 +131,7 @@ export type ServerMessage =
   | SvUserRename
   | SvPresence
   | SvRoomExtended
+  | SvRoomConfigUpdated
   | SvRoomExpiring
   | SvRoomExpired
   | SvHistoryResponse

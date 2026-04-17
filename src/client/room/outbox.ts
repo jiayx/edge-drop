@@ -7,7 +7,6 @@ import type { PendingOutgoingMessage, RoomPageContext } from "./state";
 import { escHtml } from "./utils";
 
 const MAX_AUTO_RETRY_COUNT = 3;
-const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
 
 interface OutboxDeps {
   appendLocalSystemNotice: (text: string) => void;
@@ -371,8 +370,8 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
 
   const handleFileUploads = async (files: File[]): Promise<void> => {
     for (const file of files) {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        alert(`"${file.name}" exceeds the 100 MB limit`);
+      if (file.size > context.maxFileSizeBytes) {
+        deps.appendLocalSystemNotice(`"${file.name}" exceeds the ${context.maxFileSizeLabel} limit`);
         continue;
       }
       const tempId = crypto.randomUUID();

@@ -2,8 +2,9 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { isValidRoomKey } from "@/lib/roomKey";
 import { isExpired } from "@/lib/expiry";
+import { getDefaultMaxFileSizeMb, parsePositiveInt } from "@/lib/fileSize";
 import { putObject, deleteObjects } from "@/lib/r2";
-import { lookupRoom } from "@/room/store";
+import { getRoomStub, lookupRoom } from "@/room/store";
 
 function param(c: Context<{ Bindings: Env }>, name: string): string {
   return c.req.param(name) ?? "";
@@ -72,10 +73,14 @@ export async function uploadFile(c: Context<{ Bindings: Env }>): Promise<Respons
     return c.json({ error: "Invalid file size" }, 400);
   }
 
-  // Validate size
-  const maxBytes = parseInt(env.MAX_FILE_SIZE_MB, 10) * 1024 * 1024;
+  const roomStub = getRoomStub(env, entry.doId);
+  const roomInfoRes = await roomStub.fetch("http://internal/info");
+  if (!roomInfoRes.ok) return c.json({ error: "Room unavailable" }, 503);
+  const roomInfo = await roomInfoRes.json<{ maxFileSizeMb?: unknown }>();
+  const maxFileSizeMb = parsePositiveInt(roomInfo.maxFileSizeMb) ?? getDefaultMaxFileSizeMb(env);
+  const maxBytes = maxFileSizeMb * 1024 * 1024;
   if (sizeBytes > maxBytes) {
-    return c.json({ error: `File exceeds maximum size of ${env.MAX_FILE_SIZE_MB} MB` }, 400);
+    return c.json({ error: `File exceeds maximum size of ${maxFileSizeMb} MB` }, 400);
   }
 
   // Validate MIME type
