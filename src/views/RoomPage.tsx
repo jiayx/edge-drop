@@ -59,6 +59,13 @@ export function RoomPage(props: RoomPageProps) {
 
       <div class="reconnect-banner" id="reconnect-banner">Reconnecting...</div>
 
+      <div id="file-drop-overlay" class="file-drop-overlay" aria-hidden="true">
+        <div class="file-drop-overlay-card">
+          <div class="file-drop-overlay-title">Drop files to send</div>
+          <div class="file-drop-overlay-subtitle">Images, documents, audio, video, and more</div>
+        </div>
+      </div>
+
       <div id="paste-confirm-modal" class="paste-confirm-modal" style="display:none">
         <div id="paste-confirm-backdrop" class="paste-confirm-backdrop"></div>
         <div class="paste-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="paste-confirm-title">

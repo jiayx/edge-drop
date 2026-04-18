@@ -13,6 +13,7 @@ export interface RoomDom {
   sendBtn: HTMLButtonElement | null;
   attachBtn: HTMLButtonElement | null;
   filePickerInput: HTMLInputElement | null;
+  fileDropOverlay: HTMLElement | null;
   pasteConfirmModal: HTMLElement | null;
   pasteConfirmBackdrop: HTMLElement | null;
   pasteConfirmPreview: HTMLElement | null;
@@ -67,6 +68,7 @@ export function createRoomDom(): RoomDom {
     sendBtn: document.getElementById("send-btn") as HTMLButtonElement | null,
     attachBtn: document.getElementById("attach-btn") as HTMLButtonElement | null,
     filePickerInput: document.getElementById("file-picker") as HTMLInputElement | null,
+    fileDropOverlay: document.getElementById("file-drop-overlay"),
     pasteConfirmModal: document.getElementById("paste-confirm-modal"),
     pasteConfirmBackdrop: document.getElementById("paste-confirm-backdrop"),
     pasteConfirmPreview: document.getElementById("paste-confirm-preview"),

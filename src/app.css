@@ -784,6 +784,45 @@ a:hover {
   z-index: 200;
 }
 
+.file-drop-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--bg) 58%, transparent);
+  backdrop-filter: blur(8px);
+  z-index: 240;
+  pointer-events: none;
+}
+
+.file-drop-overlay.visible {
+  display: flex;
+}
+
+.file-drop-overlay-card {
+  width: min(92vw, 28rem);
+  padding: 1.35rem 1.5rem;
+  border: 2px dashed color-mix(in srgb, var(--accent) 78%, var(--border));
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  text-align: center;
+}
+
+.file-drop-overlay-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.file-drop-overlay-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.86rem;
+  color: var(--text-dim);
+}
+
 .paste-confirm-modal {
   position: fixed;
   inset: 0;

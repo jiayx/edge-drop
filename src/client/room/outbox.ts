@@ -161,6 +161,7 @@ function buildPendingOutgoingMessageEl(
 export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
   let pastedFiles: File[] = [];
   let pastedPreviewUrl: string | null = null;
+  let dragDepth = 0;
 
   const syncPendingOutgoingMessageEl = (tempId: string): void => {
     const pending = context.state.pendingOutgoingMessages.get(tempId);
@@ -397,9 +398,18 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
     }
   };
 
+  const isPasteConfirmOpen = (): boolean => context.dom.pasteConfirmModal?.style.display === "flex";
+  const hasDraggedFiles = (dataTransfer: DataTransfer | null | undefined): boolean =>
+    Array.from(dataTransfer?.types ?? []).includes("Files");
+
+  const setFileDropOverlayVisible = (visible: boolean): void => {
+    context.dom.fileDropOverlay?.classList.toggle("visible", visible);
+  };
+
   const closePasteConfirm = (): void => {
     context.dom.pasteConfirmModal?.setAttribute("style", "display:none");
     clearPastePreview();
+    context.dom.messageInput?.focus();
   };
 
   const openPasteConfirm = (files: File[]): void => {
@@ -425,10 +435,52 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       }
     }
     context.dom.pasteConfirmModal?.setAttribute("style", "display:flex");
+    context.dom.pasteConfirmCancelBtn?.focus();
+  };
+
+  const bindFileDrop = (): void => {
+    document.addEventListener("dragenter", (event: DragEvent) => {
+      if (!hasDraggedFiles(event.dataTransfer) || isPasteConfirmOpen()) return;
+      dragDepth += 1;
+      setFileDropOverlayVisible(true);
+    });
+
+    document.addEventListener("dragover", (event: DragEvent) => {
+      if (!hasDraggedFiles(event.dataTransfer) || isPasteConfirmOpen()) return;
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      setFileDropOverlayVisible(true);
+    });
+
+    document.addEventListener("dragleave", (event: DragEvent) => {
+      if (!hasDraggedFiles(event.dataTransfer) || isPasteConfirmOpen()) return;
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0 || event.relatedTarget === null) {
+        dragDepth = 0;
+        setFileDropOverlayVisible(false);
+      }
+    });
+
+    document.addEventListener("drop", (event: DragEvent) => {
+      if (!hasDraggedFiles(event.dataTransfer) || isPasteConfirmOpen()) return;
+      event.preventDefault();
+      dragDepth = 0;
+      setFileDropOverlayVisible(false);
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.size > 0);
+      if (!files.length) return;
+      void handleFileUploads(files);
+    });
   };
 
   const bindComposer = (): void => {
     context.dom.sendBtn?.addEventListener("click", sendText);
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !isPasteConfirmOpen()) return;
+      e.preventDefault();
+      closePasteConfirm();
+    });
     context.dom.messageInput?.addEventListener("keydown", (e: KeyboardEvent) => {
       if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
       if (e.key === "Enter" && !e.shiftKey) {
@@ -457,6 +509,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       closePasteConfirm();
       void handleFileUploads(files);
     });
+    bindFileDrop();
 
     context.dom.messageList?.addEventListener("click", (event) => {
       const target = event.target;
