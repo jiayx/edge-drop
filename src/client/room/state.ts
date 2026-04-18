@@ -37,6 +37,7 @@ export interface RoomPageState {
   oldestSeq: number;
   hasMore: boolean;
   loadingHistory: boolean;
+  topLoaderHideTimer: number | null;
   ws: RoomWebSocket | null;
   expiresAt: number;
   countdownInterval: ReturnType<typeof setInterval> | null;
@@ -62,6 +63,7 @@ export function createRoomPageState(): RoomPageState {
     oldestSeq: 0,
     hasMore: true,
     loadingHistory: false,
+    topLoaderHideTimer: null,
     ws: null,
     expiresAt: 0,
     countdownInterval: null,

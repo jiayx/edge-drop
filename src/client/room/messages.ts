@@ -173,7 +173,7 @@ export function prependMessages(context: RoomPageContext, messages: Message[]): 
   const before = messageList.scrollHeight;
   const fragment = document.createDocumentFragment();
   for (const msg of messages) {
-    fragment.prepend(buildMessageEl(context, msg));
+    fragment.append(buildMessageEl(context, msg));
   }
   messageList.insertBefore(fragment, topLoader?.nextSibling ?? null);
   messageList.scrollTop += messageList.scrollHeight - before;

@@ -454,8 +454,36 @@ a:hover {
 }
 
 #top-loader {
-  height: 4px;
-  background: transparent;
+  position: relative;
+  min-height: 1px;
+  height: 1px;
+  margin-top: -0.35rem;
+  margin-bottom: 0.35rem;
+  pointer-events: none;
+  transition: margin 0.16s ease;
+}
+
+#top-loader.visible {
+  margin-top: 0.15rem;
+  margin-bottom: 0.6rem;
+}
+
+#top-loader::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -70%);
+  white-space: nowrap;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  padding: 0.14rem 0.5rem;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+#top-loader.visible::after {
+  opacity: 1;
 }
 
 .message {

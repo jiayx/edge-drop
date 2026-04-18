@@ -35,13 +35,48 @@ function syncOldestSeq(context: RoomPageContext, seq: number): void {
   }
 }
 
+function setTopLoaderState(context: RoomPageContext, text = "", visible = false): void {
+  if (!context.dom.topLoader) return;
+  context.dom.topLoader.dataset.label = text;
+  context.dom.topLoader.classList.toggle("visible", visible);
+}
+
+function clearTopLoaderHideTimer(context: RoomPageContext): void {
+  if (context.state.topLoaderHideTimer == null) return;
+  window.clearTimeout(context.state.topLoaderHideTimer);
+  context.state.topLoaderHideTimer = null;
+}
+
+function resetTopLoaderState(context: RoomPageContext): void {
+  clearTopLoaderHideTimer(context);
+  setTopLoaderState(context);
+}
+
+function showTopLoaderMessage(context: RoomPageContext, text: string, durationMs = 1600): void {
+  clearTopLoaderHideTimer(context);
+  setTopLoaderState(context, text, true);
+  context.state.topLoaderHideTimer = window.setTimeout(() => {
+    context.state.topLoaderHideTimer = null;
+    if (!context.state.loadingHistory) {
+      setTopLoaderState(context);
+    }
+  }, durationMs);
+}
+
 async function loadMoreHistory(context: RoomPageContext): Promise<void> {
-  if (!context.state.hasMore || context.state.loadingHistory) return;
+  if (context.state.loadingHistory) return;
+  if (!context.state.hasMore) {
+    showTopLoaderMessage(context, "No earlier messages");
+    return;
+  }
   if (context.state.oldestSeq <= 1) {
     context.state.hasMore = false;
+    showTopLoaderMessage(context, "No earlier messages");
     return;
   }
   context.state.loadingHistory = true;
+  resetTopLoaderState(context);
+  setTopLoaderState(context, "Loading earlier messages...", true);
 
   const sent = context.state.ws?.send({
     type: "history:request",
@@ -49,6 +84,7 @@ async function loadMoreHistory(context: RoomPageContext): Promise<void> {
     limit: 50,
   });
   if (!sent) {
+    let hasMore = true;
     try {
       const res = await fetch(
         `/api/v1/rooms/${context.roomKey}/messages?beforeSeq=${context.state.oldestSeq}&limit=50`
@@ -60,12 +96,19 @@ async function loadMoreHistory(context: RoomPageContext): Promise<void> {
         syncOldestSeq(context, unseen[0]?.seq ?? 0);
       }
       context.state.hasMore = data.hasMore;
+      hasMore = data.hasMore;
     } finally {
       context.state.loadingHistory = false;
+      if (hasMore) {
+        resetTopLoaderState(context);
+      } else {
+        showTopLoaderMessage(context, "No earlier messages");
+      }
     }
   } else {
     setTimeout(() => {
       context.state.loadingHistory = false;
+      resetTopLoaderState(context);
     }, 5000);
   }
 }
@@ -165,9 +208,12 @@ export async function bootstrapRoomPage(): Promise<void> {
           }
           context.state.hasMore = msg.hasMore;
         }
-        requestAnimationFrame(() => {
-          context.state.loadingHistory = false;
-        });
+        context.state.loadingHistory = false;
+        if (msg.hasMore) {
+          resetTopLoaderState(context);
+        } else {
+          showTopLoaderMessage(context, "No earlier messages");
+        }
         break;
 
       case "missed:response": {
@@ -232,7 +278,7 @@ export async function bootstrapRoomPage(): Promise<void> {
   });
   scrollToBottom(context);
   registerScrollObserver(context, () => {
-    if (context.state.hasMore && !context.state.loadingHistory) {
+    if (!context.state.loadingHistory) {
       void loadMoreHistory(context);
     }
   });
