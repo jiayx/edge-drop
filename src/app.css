@@ -756,6 +756,75 @@ a:hover {
   z-index: 200;
 }
 
+.paste-confirm-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 260;
+}
+
+.paste-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, #08111d 58%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.paste-confirm-dialog {
+  position: relative;
+  width: min(92vw, 28rem);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1.2rem;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.paste-confirm-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.paste-confirm-body {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.paste-confirm-preview {
+  display: grid;
+  place-items: center;
+  min-height: 6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface2);
+}
+
+.paste-confirm-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(18rem, 45vh);
+  border-radius: 0.75rem;
+}
+
+.paste-confirm-summary {
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.paste-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

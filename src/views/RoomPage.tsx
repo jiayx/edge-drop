@@ -59,6 +59,23 @@ export function RoomPage(props: RoomPageProps) {
 
       <div class="reconnect-banner" id="reconnect-banner">Reconnecting...</div>
 
+      <div id="paste-confirm-modal" class="paste-confirm-modal" style="display:none">
+        <div id="paste-confirm-backdrop" class="paste-confirm-backdrop"></div>
+        <div class="paste-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="paste-confirm-title">
+          <div class="paste-confirm-header">
+            <h2 id="paste-confirm-title" class="paste-confirm-title">Send pasted file?</h2>
+          </div>
+          <div class="paste-confirm-body">
+            <div id="paste-confirm-preview" class="paste-confirm-preview" style="display:none"></div>
+            <div id="paste-confirm-summary" class="paste-confirm-summary"></div>
+          </div>
+          <div class="paste-confirm-actions">
+            <button id="paste-confirm-cancel" class="btn btn-secondary" type="button">Cancel</button>
+            <button id="paste-confirm-send" class="btn btn-primary" type="button">Send</button>
+          </div>
+        </div>
+      </div>
+
       <footer class="input-bar">
         <button
           id="attach-btn"

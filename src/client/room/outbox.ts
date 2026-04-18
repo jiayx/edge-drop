@@ -159,6 +159,9 @@ function buildPendingOutgoingMessageEl(
 }
 
 export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
+  let pastedFiles: File[] = [];
+  let pastedPreviewUrl: string | null = null;
+
   const syncPendingOutgoingMessageEl = (tempId: string): void => {
     const pending = context.state.pendingOutgoingMessages.get(tempId);
     if (!pending) return;
@@ -379,6 +382,51 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
     }
   };
 
+  const clearPastePreview = (): void => {
+    if (pastedPreviewUrl) {
+      URL.revokeObjectURL(pastedPreviewUrl);
+      pastedPreviewUrl = null;
+    }
+    pastedFiles = [];
+    if (context.dom.pasteConfirmPreview) {
+      context.dom.pasteConfirmPreview.innerHTML = "";
+      context.dom.pasteConfirmPreview.style.display = "none";
+    }
+    if (context.dom.pasteConfirmSummary) {
+      context.dom.pasteConfirmSummary.textContent = "";
+    }
+  };
+
+  const closePasteConfirm = (): void => {
+    context.dom.pasteConfirmModal?.setAttribute("style", "display:none");
+    clearPastePreview();
+  };
+
+  const openPasteConfirm = (files: File[]): void => {
+    pastedFiles = files;
+    const [firstFile] = files;
+    if (!firstFile) return;
+    if (context.dom.pasteConfirmSummary) {
+      const extra = files.length > 1 ? ` and ${files.length - 1} more file(s)` : "";
+      context.dom.pasteConfirmSummary.textContent = `Send ${firstFile.name}${extra}?`;
+    }
+    if (context.dom.pasteConfirmPreview) {
+      context.dom.pasteConfirmPreview.innerHTML = "";
+      if (firstFile && isImageMime(firstFile.type)) {
+        pastedPreviewUrl = URL.createObjectURL(firstFile);
+        const img = document.createElement("img");
+        img.src = pastedPreviewUrl;
+        img.alt = firstFile.name;
+        img.className = "paste-confirm-image";
+        context.dom.pasteConfirmPreview.appendChild(img);
+        context.dom.pasteConfirmPreview.style.display = "block";
+      } else {
+        context.dom.pasteConfirmPreview.style.display = "none";
+      }
+    }
+    context.dom.pasteConfirmModal?.setAttribute("style", "display:flex");
+  };
+
   const bindComposer = (): void => {
     context.dom.sendBtn?.addEventListener("click", sendText);
     context.dom.messageInput?.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -388,12 +436,25 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
         sendText();
       }
     });
+    context.dom.messageInput?.addEventListener("paste", (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? []).filter((file) => file.size > 0);
+      if (!files.length) return;
+      e.preventDefault();
+      openPasteConfirm(files);
+    });
 
     context.dom.attachBtn?.addEventListener("click", () => context.dom.filePickerInput?.click());
     context.dom.filePickerInput?.addEventListener("change", () => {
       const files = Array.from(context.dom.filePickerInput?.files ?? []);
       if (!files.length) return;
       if (context.dom.filePickerInput) context.dom.filePickerInput.value = "";
+      void handleFileUploads(files);
+    });
+    context.dom.pasteConfirmBackdrop?.addEventListener("click", closePasteConfirm);
+    context.dom.pasteConfirmCancelBtn?.addEventListener("click", closePasteConfirm);
+    context.dom.pasteConfirmSendBtn?.addEventListener("click", () => {
+      const files = pastedFiles;
+      closePasteConfirm();
       void handleFileUploads(files);
     });
 

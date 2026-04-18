@@ -13,6 +13,12 @@ export interface RoomDom {
   sendBtn: HTMLButtonElement | null;
   attachBtn: HTMLButtonElement | null;
   filePickerInput: HTMLInputElement | null;
+  pasteConfirmModal: HTMLElement | null;
+  pasteConfirmBackdrop: HTMLElement | null;
+  pasteConfirmPreview: HTMLElement | null;
+  pasteConfirmSummary: HTMLElement | null;
+  pasteConfirmCancelBtn: HTMLButtonElement | null;
+  pasteConfirmSendBtn: HTMLButtonElement | null;
   reconnectBanner: HTMLElement | null;
   topLoader: HTMLElement | null;
   themeToggleBtn: HTMLButtonElement | null;
@@ -61,6 +67,12 @@ export function createRoomDom(): RoomDom {
     sendBtn: document.getElementById("send-btn") as HTMLButtonElement | null,
     attachBtn: document.getElementById("attach-btn") as HTMLButtonElement | null,
     filePickerInput: document.getElementById("file-picker") as HTMLInputElement | null,
+    pasteConfirmModal: document.getElementById("paste-confirm-modal"),
+    pasteConfirmBackdrop: document.getElementById("paste-confirm-backdrop"),
+    pasteConfirmPreview: document.getElementById("paste-confirm-preview"),
+    pasteConfirmSummary: document.getElementById("paste-confirm-summary"),
+    pasteConfirmCancelBtn: document.getElementById("paste-confirm-cancel") as HTMLButtonElement | null,
+    pasteConfirmSendBtn: document.getElementById("paste-confirm-send") as HTMLButtonElement | null,
     reconnectBanner: document.getElementById("reconnect-banner"),
     topLoader: document.getElementById("top-loader"),
     themeToggleBtn: document.getElementById("theme-toggle-btn") as HTMLButtonElement | null,
