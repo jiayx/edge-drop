@@ -452,6 +452,15 @@ a:hover {
   background: var(--surface2);
 }
 
+.rooms-table tbody tr.room-row {
+  cursor: pointer;
+}
+
+.rooms-table tbody tr.room-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .rooms-empty {
   text-align: center;
   color: var(--text-dim);

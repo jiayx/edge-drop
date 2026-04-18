@@ -305,7 +305,7 @@ function renderRoomsTable(): void {
       const statusText = room.isActive ? "Active" : "Expired";
 
       return `
-        <tr>
+        <tr class="room-row" data-room-key="${room.key}" tabindex="0" role="button">
           <td><code class="room-key">${room.key}</code></td>
           <td><span class="status-badge ${statusClass}">${statusText}</span></td>
           <td>${room.onlineCount}</td>
@@ -320,9 +320,24 @@ function renderRoomsTable(): void {
     })
     .join("");
 
+  roomsTbody.querySelectorAll(".room-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const key = row instanceof HTMLElement ? row.dataset.roomKey : undefined;
+      if (key) openRoomDetail(key);
+    });
+
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const key = row instanceof HTMLElement ? row.dataset.roomKey : undefined;
+      if (key) openRoomDetail(key);
+    });
+  });
+
   // Attach event listeners to detail buttons
   roomsTbody.querySelectorAll(".btn-details").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
       const key = btn instanceof HTMLElement ? btn.dataset.roomKey : undefined;
       if (key) openRoomDetail(key);
     });
