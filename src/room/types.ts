@@ -53,7 +53,7 @@ export interface WsUserRename {
 
 export interface WsHistoryRequest {
   type: "history:request";
-  fromSeq: number;
+  beforeSeq: number;
   limit: number;
 }
 
@@ -118,6 +118,12 @@ export interface SvHistoryResponse {
   nextSeq: number;
 }
 
+export interface SvMissedResponse {
+  type: "missed:response";
+  messages: Message[];
+  nextSeq: number;
+}
+
 export interface SvError {
   type: "error";
   code: string;
@@ -135,6 +141,7 @@ export type ServerMessage =
   | SvRoomExpiring
   | SvRoomExpired
   | SvHistoryResponse
+  | SvMissedResponse
   | SvError;
 
 // Room index registry entry

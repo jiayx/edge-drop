@@ -22,16 +22,43 @@ function lobbyUrl(params?: URLSearchParams | string): string {
   return search ? `/?${search}` : "/";
 }
 
+function syncLastSeq(context: RoomPageContext, seq: number): void {
+  if (seq <= context.state.lastSeq) return;
+  context.state.lastSeq = seq;
+  context.state.ws?.updateFromSeq(seq);
+}
+
+function syncOldestSeq(context: RoomPageContext, seq: number): void {
+  if (seq <= 0) return;
+  if (context.state.oldestSeq === 0 || seq < context.state.oldestSeq) {
+    context.state.oldestSeq = seq;
+  }
+}
+
 async function loadMoreHistory(context: RoomPageContext): Promise<void> {
   if (!context.state.hasMore || context.state.loadingHistory) return;
+  if (context.state.oldestSeq <= 1) {
+    context.state.hasMore = false;
+    return;
+  }
   context.state.loadingHistory = true;
 
-  const sent = context.state.ws?.send({ type: "history:request", fromSeq: 0, limit: 50 });
+  const sent = context.state.ws?.send({
+    type: "history:request",
+    beforeSeq: context.state.oldestSeq,
+    limit: 50,
+  });
   if (!sent) {
     try {
-      const res = await fetch(`/api/v1/rooms/${context.roomKey}/messages?fromSeq=0&limit=50`);
+      const res = await fetch(
+        `/api/v1/rooms/${context.roomKey}/messages?beforeSeq=${context.state.oldestSeq}&limit=50`
+      );
       const data = await res.json() as { messages: Message[]; hasMore: boolean; nextSeq: number };
-      if (data.messages.length) prependMessages(context, data.messages);
+      const unseen = data.messages.filter((message) => !document.querySelector(`[data-msg-id="${message.id}"]`));
+      if (unseen.length) {
+        prependMessages(context, unseen);
+        syncOldestSeq(context, unseen[0]?.seq ?? 0);
+      }
       context.state.hasMore = data.hasMore;
     } finally {
       context.state.loadingHistory = false;
@@ -84,17 +111,14 @@ export async function bootstrapRoomPage(): Promise<void> {
           if (keepBottomAligned) {
             scrollToBottom(context);
           }
-          if (message.seq > context.state.lastSeq) context.state.lastSeq = message.seq;
+          syncLastSeq(context, message.seq);
         }
         break;
       }
 
       case "msg:ack":
         outbox.handleAck(msg.tempId, msg.id);
-        if (msg.seq > context.state.lastSeq) {
-          context.state.lastSeq = msg.seq;
-          context.state.ws?.updateFromSeq(context.state.lastSeq);
-        }
+        syncLastSeq(context, msg.seq);
         break;
 
       case "user:join":
@@ -133,13 +157,31 @@ export async function bootstrapRoomPage(): Promise<void> {
         break;
 
       case "history:response":
-        if (msg.messages.length) prependMessages(context, msg.messages);
-        if (msg.nextSeq > context.state.lastSeq) context.state.lastSeq = msg.nextSeq;
-        context.state.hasMore = msg.hasMore;
+        if (context.state.loadingHistory) {
+          const unseen = msg.messages.filter((message) => !document.querySelector(`[data-msg-id="${message.id}"]`));
+          if (unseen.length) {
+            prependMessages(context, unseen);
+            syncOldestSeq(context, unseen[0]?.seq ?? 0);
+          }
+          context.state.hasMore = msg.hasMore;
+        }
         requestAnimationFrame(() => {
           context.state.loadingHistory = false;
         });
         break;
+
+      case "missed:response": {
+        const keepBottomAligned = context.state.stickToBottom;
+        for (const missedMessage of msg.messages) {
+          if (document.querySelector(`[data-msg-id="${missedMessage.id}"]`)) continue;
+          renderMessage(context, missedMessage, keepBottomAligned);
+        }
+        if (keepBottomAligned && msg.messages.length) {
+          scrollToBottom(context);
+        }
+        syncLastSeq(context, msg.nextSeq);
+        break;
+      }
 
       case "error":
         appendLocalSystemNotice(msg.message);
@@ -180,6 +222,8 @@ export async function bootstrapRoomPage(): Promise<void> {
   const data = await res.json() as JoinResponse;
   header.setExpiresAt(data.expiresAt);
   context.state.lastSeq = data.nextSeq ?? 0;
+  context.state.ws?.updateFromSeq(context.state.lastSeq);
+  context.state.oldestSeq = data.messages[0]?.seq ?? 0;
   context.state.hasMore = data.hasMoreMessages;
   updatePresence(context, data.onlineCount, data.onlineUsers);
 

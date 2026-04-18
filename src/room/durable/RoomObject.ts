@@ -83,9 +83,8 @@ export class RoomObject {
     const onlineCount = onlineUsers.length;
 
     const historyMsg: ServerMessage = {
-      type: "history:response",
+      type: "missed:response",
       messages: missedMessages.messages,
-      hasMore: missedMessages.hasMore,
       nextSeq: missedMessages.nextSeq,
     };
     server.send(JSON.stringify(historyMsg));
@@ -180,7 +179,7 @@ export class RoomObject {
       }
 
       case "history:request": {
-        const result = await this.loadMessages(parsed.fromSeq, Math.min(parsed.limit, 100));
+        const result = await this.loadMessagesBefore(parsed.beforeSeq, Math.min(parsed.limit, 100));
         const resp: ServerMessage = {
           type: "history:response",
           messages: result.messages,
@@ -272,9 +271,12 @@ export class RoomObject {
   }
 
   private async handleGetMessages(url: URL): Promise<Response> {
-    const fromSeq = parseInt(url.searchParams.get("fromSeq") ?? "0", 10);
+    const beforeSeq = parseInt(url.searchParams.get("beforeSeq") ?? "0", 10);
+    if (beforeSeq <= 0) {
+      return Response.json({ error: "beforeSeq is required" }, { status: 400 });
+    }
     const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 100);
-    const result = await this.loadMessages(fromSeq, limit);
+    const result = await this.loadMessagesBefore(beforeSeq, limit);
     return Response.json(result);
   }
 
@@ -448,6 +450,39 @@ export class RoomObject {
     const hasMore = entries.size > limit;
     const lastMsg = messages[messages.length - 1];
     const nextSeq = lastMsg ? lastMsg.seq + 1 : fromSeq;
+
+    return { messages, hasMore, nextSeq };
+  }
+
+  private async loadMessagesBefore(
+    beforeSeq: number,
+    limit: number
+  ): Promise<{ messages: Message[]; hasMore: boolean; nextSeq: number }> {
+    const messageCount = (await this.state.storage.get<number>("msg:count")) ?? 0;
+    const effectiveBefore = Math.min(beforeSeq, messageCount + 1);
+    if (effectiveBefore <= 1) {
+      return { messages: [], hasMore: false, nextSeq: effectiveBefore };
+    }
+
+    const startSeq = Math.max(1, effectiveBefore - limit);
+    const entries = await this.state.storage.list<Message>({
+      prefix: "msg:",
+      start: seqKey(startSeq),
+      limit: limit + 1,
+    });
+
+    const messages: Message[] = [];
+    for (const [key, value] of entries) {
+      if (key === "msg:count") continue;
+      if (!this.isMessage(value)) continue;
+      if (value.seq >= effectiveBefore) break;
+      messages.push(value);
+      if (messages.length >= limit) break;
+    }
+
+    const hasMore = startSeq > 1;
+    const lastMsg = messages[messages.length - 1];
+    const nextSeq = lastMsg ? lastMsg.seq + 1 : effectiveBefore;
 
     return { messages, hasMore, nextSeq };
   }

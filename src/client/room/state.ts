@@ -34,6 +34,7 @@ export interface JoinResponse {
 
 export interface RoomPageState {
   lastSeq: number;
+  oldestSeq: number;
   hasMore: boolean;
   loadingHistory: boolean;
   ws: RoomWebSocket | null;
@@ -58,6 +59,7 @@ export interface RoomPageContext {
 export function createRoomPageState(): RoomPageState {
   return {
     lastSeq: 0,
+    oldestSeq: 0,
     hasMore: true,
     loadingHistory: false,
     ws: null,

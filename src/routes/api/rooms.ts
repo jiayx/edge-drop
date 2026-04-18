@@ -102,7 +102,7 @@ export async function joinRoom(c: Context<{ Bindings: Env }>): Promise<Response>
   const infoRes = await stub.fetch("http://internal/info");
   const info = await infoRes.json<Record<string, unknown>>();
 
-  const msgsRes = await stub.fetch("http://internal/messages?fromSeq=0&limit=50");
+  const msgsRes = await stub.fetch("http://internal/messages?beforeSeq=2147483647&limit=50");
   const msgs = await msgsRes.json<{ messages: unknown[]; hasMore: boolean; nextSeq: number }>();
 
   return c.json({
@@ -161,11 +161,13 @@ export async function getRoomMessages(c: Context<{ Bindings: Env }>): Promise<Re
   if (!entry) return c.json({ error: "Room not found" }, 404);
   if (isExpired(entry.expiresAt)) return c.json({ error: "Room expired" }, 410);
 
-  const fromSeq = c.req.query("fromSeq") ?? "0";
+  const beforeSeq = c.req.query("beforeSeq");
   const limit = c.req.query("limit") ?? "50";
+  if (!beforeSeq) return c.json({ error: "beforeSeq is required" }, 400);
 
   const stub = getRoomStub(env, entry.doId);
-  const res = await stub.fetch(`http://internal/messages?fromSeq=${fromSeq}&limit=${limit}`);
+  const search = new URLSearchParams({ limit, beforeSeq });
+  const res = await stub.fetch(`http://internal/messages?${search.toString()}`);
   return new Response(res.body, { status: res.status, headers: { "Content-Type": "application/json" } });
 }
 
