@@ -225,7 +225,10 @@ export async function bootstrapRoomPage(): Promise<void> {
         if (keepBottomAligned && msg.messages.length) {
           scrollToBottom(context);
         }
-        syncLastSeq(context, msg.nextSeq);
+        const lastMissedSeq = msg.messages[msg.messages.length - 1]?.seq ?? 0;
+        if (lastMissedSeq > 0) {
+          syncLastSeq(context, lastMissedSeq);
+        }
         break;
       }
 
@@ -240,7 +243,7 @@ export async function bootstrapRoomPage(): Promise<void> {
       roomKey: context.roomKey,
       userId: context.identity.userId,
       displayName: context.identity.displayName,
-      fromSeq: Math.max(0, context.state.lastSeq - 1),
+      fromSeq: Math.max(0, context.state.lastSeq),
       onOpen: () => {
         context.state.isWsConnected = true;
         outbox.flushPendingOutgoingMessages();
@@ -267,7 +270,7 @@ export async function bootstrapRoomPage(): Promise<void> {
 
   const data = await res.json() as JoinResponse;
   header.setExpiresAt(data.expiresAt);
-  context.state.lastSeq = data.nextSeq ?? 0;
+  context.state.lastSeq = data.messages[data.messages.length - 1]?.seq ?? 0;
   context.state.ws?.updateFromSeq(context.state.lastSeq);
   context.state.oldestSeq = data.messages[0]?.seq ?? 0;
   context.state.hasMore = data.hasMoreMessages;
