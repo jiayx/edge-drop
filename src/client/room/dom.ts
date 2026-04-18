@@ -10,6 +10,8 @@ export interface RoomDom {
   selfNameInput: HTMLInputElement | null;
   messageList: HTMLElement | null;
   messageInput: HTMLTextAreaElement | null;
+  composerWrap: HTMLElement | null;
+  mentionMenu: HTMLElement | null;
   sendBtn: HTMLButtonElement | null;
   attachBtn: HTMLButtonElement | null;
   filePickerInput: HTMLInputElement | null;
@@ -65,6 +67,8 @@ export function createRoomDom(): RoomDom {
     selfNameInput: document.getElementById("self-name-input") as HTMLInputElement | null,
     messageList: document.getElementById("message-list"),
     messageInput: document.getElementById("message-input") as HTMLTextAreaElement | null,
+    composerWrap: document.getElementById("composer-wrap"),
+    mentionMenu: document.getElementById("mention-menu"),
     sendBtn: document.getElementById("send-btn") as HTMLButtonElement | null,
     attachBtn: document.getElementById("attach-btn") as HTMLButtonElement | null,
     filePickerInput: document.getElementById("file-picker") as HTMLInputElement | null,

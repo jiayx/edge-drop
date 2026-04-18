@@ -13,6 +13,8 @@ interface OutboxDeps {
   cycleThemePreference: () => import("./state").ThemePreference;
   getAppliedTheme: (preference: import("./state").ThemePreference) => import("./state").ThemeMode;
   applyRename: (name: string) => boolean;
+  handleMentionKeydown: (event: KeyboardEvent) => boolean;
+  syncMentionMenu: () => void;
 }
 
 function getFileMessageType(mimeType: string): Message["type"] {
@@ -482,12 +484,14 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       closePasteConfirm();
     });
     context.dom.messageInput?.addEventListener("keydown", (e: KeyboardEvent) => {
-      if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
+      if ((e.isComposing || e.key === "Process") && e.key !== "Escape") return;
+      if (deps.handleMentionKeydown(e)) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendText();
       }
     });
+    context.dom.messageInput?.addEventListener("focus", deps.syncMentionMenu);
     context.dom.messageInput?.addEventListener("paste", (e: ClipboardEvent) => {
       const files = Array.from(e.clipboardData?.files ?? []).filter((file) => file.size > 0);
       if (!files.length) return;

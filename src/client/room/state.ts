@@ -1,4 +1,4 @@
-import type { ClientMessage, Message } from "@/room/types";
+import type { ClientMessage, Message, UserRecord } from "@/room/types";
 
 import type { RoomDom } from "./dom";
 import type { Identity } from "./identity";
@@ -46,6 +46,8 @@ export interface RoomPageState {
   bottomCorrectionPasses: number;
   isWsConnected: boolean;
   pendingOutgoingMessages: Map<string, PendingOutgoingMessage>;
+  onlineUsers: UserRecord[];
+  knownUsers: Map<string, UserRecord>;
 }
 
 export interface RoomPageContext {
@@ -72,5 +74,7 @@ export function createRoomPageState(): RoomPageState {
     bottomCorrectionPasses: 0,
     isWsConnected: false,
     pendingOutgoingMessages: new Map<string, PendingOutgoingMessage>(),
+    onlineUsers: [],
+    knownUsers: new Map<string, UserRecord>(),
   };
 }

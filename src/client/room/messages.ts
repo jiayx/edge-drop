@@ -1,6 +1,7 @@
 import { formatFileSize } from "@/client/file";
 import type { Message } from "@/room/types";
 
+import { renderTextWithMentions } from "./mention";
 import type { RoomPageContext } from "./state";
 import { escHtml } from "./utils";
 
@@ -103,7 +104,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
 
   let contentHtml: string;
   if (msg.type === "text") {
-    contentHtml = `<p class="bubble-text">${escHtml(msg.content).replace(/\n/g, "<br>")}</p>`;
+    contentHtml = `<p class="bubble-text">${renderTextWithMentions(context, msg.content, msg.senderId)}</p>`;
   } else if (msg.type === "image") {
     const url = fileUrl(context.roomKey, msg.content);
     const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";

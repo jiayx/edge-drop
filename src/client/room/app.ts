@@ -3,6 +3,7 @@ import type { Message, ServerMessage } from "@/room/types";
 import { createRoomDom, getRoomKey, getRoomMaxFileSizeMb, getRoomRoot } from "./dom";
 import { createRoomHeaderController } from "./header";
 import { getOrCreateIdentity } from "./identity";
+import { createMentionController } from "./mention";
 import {
   appendSystemNotice,
   bindMessageListScroll,
@@ -11,6 +12,7 @@ import {
   renderMessage,
   scrollToBottom,
 } from "./messages";
+import { createRoomNotificationController } from "./notifications";
 import { createOutbox } from "./outbox";
 import { setupRename, updatePresence, updateRenderedUserName } from "./presence";
 import { createRoomPageState, type JoinResponse, type RoomPageContext } from "./state";
@@ -134,13 +136,19 @@ export async function bootstrapRoomPage(): Promise<void> {
   bindMessageListScroll(context);
 
   const { applyRename } = setupRename(context, appendLocalSystemNotice);
+  const mentionController = createMentionController(context);
+  const notificationController = createRoomNotificationController(context);
   const outbox = createOutbox(context, {
     appendLocalSystemNotice,
     cycleThemePreference: () => header.cycleThemePreference(),
     getAppliedTheme: (preference) => header.getAppliedTheme(preference),
     applyRename,
+    handleMentionKeydown: (event) => mentionController.handleKeydown(event),
+    syncMentionMenu: () => mentionController.syncMenu(),
   });
   outbox.bindComposer();
+  mentionController.bind();
+  notificationController.bind();
 
   const handleServerMessage = (msg: ServerMessage): void => {
     switch (msg.type) {
@@ -155,6 +163,7 @@ export async function bootstrapRoomPage(): Promise<void> {
             scrollToBottom(context);
           }
           syncLastSeq(context, message.seq);
+          void notificationController.notifyMention(message);
         }
         break;
       }
@@ -167,14 +176,17 @@ export async function bootstrapRoomPage(): Promise<void> {
       case "user:join":
       case "user:leave":
         updatePresence(context, msg.onlineCount, msg.onlineUsers ?? []);
+        mentionController.syncMenu();
         break;
 
       case "user:rename":
         updateRenderedUserName(context, msg.userId, msg.newName);
+        mentionController.syncMenu();
         break;
 
       case "room:presence":
         updatePresence(context, msg.onlineCount, msg.users);
+        mentionController.syncMenu();
         break;
 
       case "room:extended":

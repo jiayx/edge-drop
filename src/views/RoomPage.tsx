@@ -92,12 +92,15 @@ export function RoomPage(props: RoomPageProps) {
         >
           📎
         </button>
-        <textarea
-          id="message-input"
-          class="message-input"
-          rows={1}
-          placeholder="Type a message... (Enter to send)"
-        ></textarea>
+        <div id="composer-wrap" class="composer-wrap">
+          <textarea
+            id="message-input"
+            class="message-input"
+            rows={1}
+            placeholder="Type a message... (Enter to send)"
+          ></textarea>
+          <div id="mention-menu" class="mention-menu" role="listbox" aria-label="Mention room users"></div>
+        </div>
         <button id="send-btn" class="btn btn-primary" style="align-self:stretch;padding:0 1rem">
           Send
         </button>

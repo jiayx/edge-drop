@@ -9,6 +9,11 @@ function formatUserListName(context: RoomPageContext, userId: string, displayNam
 }
 
 export function updatePresence(context: RoomPageContext, count: number, users: UserRecord[]): void {
+  context.state.onlineUsers = users;
+  for (const user of users) {
+    context.state.knownUsers.set(user.userId, user);
+  }
+
   const { onlineCountEl, mobileOnlineCountEl, userListEl, mobileUserListEl } = context.dom;
 
   if (onlineCountEl) onlineCountEl.textContent = String(count);
@@ -40,6 +45,14 @@ export function updateRenderedUserName(
   userId: string,
   displayName: string
 ): void {
+  const knownUser = context.state.knownUsers.get(userId);
+  if (knownUser) {
+    context.state.knownUsers.set(userId, { ...knownUser, displayName });
+  }
+  context.state.onlineUsers = context.state.onlineUsers.map((user) =>
+    user.userId === userId ? { ...user, displayName } : user
+  );
+
   document
     .querySelectorAll<HTMLElement>(`[data-user-id="${userId}"] .user-name`)
     .forEach((el) => {
@@ -88,7 +101,7 @@ export function setupRename(
 
   selfNameInput?.addEventListener("blur", commitRename);
   selfNameInput?.addEventListener("keydown", (e: KeyboardEvent) => {
-    if ((e.isComposing || e.key === "Process" || e.keyCode === 229) && e.key !== "Escape") return;
+    if ((e.isComposing || e.key === "Process") && e.key !== "Escape") return;
     if (e.key === "Enter") commitRename();
     if (e.key === "Escape") cancelRename();
   });
