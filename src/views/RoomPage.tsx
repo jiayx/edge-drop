@@ -12,8 +12,29 @@ export function RoomPage(props: RoomPageProps) {
       data-max-file-size-mb={String(props.maxFileSizeMb)}
     >
       <header class="room-header">
-        <div id="room-key" class="room-key-display" title="Click to copy">
-          {props.roomKey}
+        <div class="room-share-anchor">
+          <button id="room-key" class="room-key-display" type="button" title="Hover to share room, click to copy room key">
+            {props.roomKey}
+          </button>
+          <div id="room-share-popover" class="room-share-popover" aria-hidden="true">
+            <span class="room-share-arrow" aria-hidden="true"></span>
+            <img
+              id="room-share-qr"
+              class="room-share-qr"
+              alt={`QR code for room ${props.roomKey}`}
+              loading="lazy"
+              width="176"
+              height="176"
+            />
+            <div id="room-share-hint" class="room-share-hint">Scan to open this room</div>
+            <button
+              id="copy-room-link-btn"
+              class="btn btn-secondary share-copy-btn"
+              type="button"
+            >
+              Copy link
+            </button>
+          </div>
         </div>
         <div id="countdown" class="countdown"></div>
         <span class="header-gap"></span>

@@ -4,6 +4,107 @@ import { MAX_ROOM_DURATION_HOURS } from "@/lib/expiry";
 import type { RoomPageContext, ThemeMode, ThemePreference } from "./state";
 import { flash } from "./utils";
 
+function buildShareUrls(roomKey: string): { roomUrl: string; qrUrl: string } {
+  const roomUrl = new URL(`/room/${roomKey}`, window.location.origin).toString();
+  const qrUrl = new URL("https://qr.tools.tf/image");
+  qrUrl.searchParams.set("data", roomUrl);
+  qrUrl.searchParams.set("size", "320");
+  qrUrl.searchParams.set("margin", "10");
+  qrUrl.searchParams.set("dotType", "rounded");
+  qrUrl.searchParams.set("cornerSquareType", "extra-rounded");
+  qrUrl.searchParams.set("cornerDotType", "dot");
+  qrUrl.searchParams.set("fg", "2563eb");
+  qrUrl.searchParams.set("bg", "ffffff");
+  qrUrl.searchParams.set("ecl", "M");
+  qrUrl.searchParams.set("gradient", "1");
+  qrUrl.searchParams.set("gradientColor1", "2563eb");
+  qrUrl.searchParams.set("gradientColor2", "06b6d4");
+  qrUrl.searchParams.set("gradientType", "linear");
+  return { roomUrl, qrUrl: qrUrl.toString() };
+}
+
+function setupRoomShare(context: RoomPageContext): void {
+  const trigger = context.dom.roomKeyEl;
+  const popover = context.dom.roomSharePopover;
+  const qrImage = context.dom.roomShareQr;
+  const copyBtn = context.dom.copyRoomLinkBtn;
+  const anchor = trigger?.parentElement;
+
+  if (!trigger || !popover || !qrImage || !(anchor instanceof HTMLElement)) return;
+
+  const { roomUrl, qrUrl } = buildShareUrls(context.roomKey);
+  qrImage.src = qrUrl;
+
+  let touchPinnedOpen = false;
+  let copyLinkTriggeredByKeyboard = false;
+
+  const syncOpenState = (open: boolean): void => {
+    popover.classList.toggle("visible", open);
+    popover.setAttribute("aria-hidden", open ? "false" : "true");
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  anchor.addEventListener("focusin", () => {
+    if (!context.dom.mobileViewport.matches) {
+      syncOpenState(true);
+    }
+  });
+  anchor.addEventListener("focusout", (event) => {
+    if (touchPinnedOpen || context.dom.mobileViewport.matches) return;
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && anchor.contains(nextTarget)) return;
+    syncOpenState(false);
+  });
+
+  anchor.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!touchPinnedOpen && !popover.classList.contains("visible")) return;
+    touchPinnedOpen = false;
+    syncOpenState(false);
+    if (document.activeElement instanceof HTMLElement && anchor.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  });
+
+  trigger.addEventListener("click", (event) => {
+    void navigator.clipboard.writeText(context.roomKey).then(() => flash(trigger, "Copied!"));
+    if (context.dom.mobileViewport.matches) {
+      event.preventDefault();
+      touchPinnedOpen = !touchPinnedOpen;
+      syncOpenState(touchPinnedOpen);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!touchPinnedOpen) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (trigger.contains(target) || popover.contains(target)) return;
+    touchPinnedOpen = false;
+    syncOpenState(false);
+  });
+
+  copyBtn?.addEventListener("click", () => {
+    void navigator.clipboard.writeText(roomUrl).then(() => {
+      flash(copyBtn, "Copied!");
+      if (!copyLinkTriggeredByKeyboard) {
+        touchPinnedOpen = false;
+        syncOpenState(false);
+      }
+      if (!context.dom.mobileViewport.matches && !copyLinkTriggeredByKeyboard) {
+        copyBtn.blur();
+      }
+      copyLinkTriggeredByKeyboard = false;
+    });
+  });
+  copyBtn?.addEventListener("keydown", (event) => {
+    copyLinkTriggeredByKeyboard = event.key === "Enter" || event.key === " ";
+  });
+  copyBtn?.addEventListener("pointerdown", () => {
+    copyLinkTriggeredByKeyboard = false;
+  });
+}
+
 function getNextThemePreference(preference: ThemePreference): ThemePreference {
   switch (preference) {
     case "system":
@@ -93,12 +194,7 @@ export function createRoomHeaderController(
     cycleThemePreference(context);
   });
 
-  if (context.dom.roomKeyEl) {
-    context.dom.roomKeyEl.textContent = context.roomKey;
-    context.dom.roomKeyEl.addEventListener("click", () => {
-      void navigator.clipboard.writeText(context.roomKey).then(() => flash(context.dom.roomKeyEl!, "Copied!"));
-    });
-  }
+  setupRoomShare(context);
 
   context.dom.extendBtn?.addEventListener("click", () => {
     void (async () => {

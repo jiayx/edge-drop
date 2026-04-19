@@ -235,7 +235,16 @@ a:hover {
   flex-wrap: wrap;
 }
 
+.room-share-anchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .room-key-display {
+  appearance: none;
+  border: none;
+  background: transparent;
   font-family: monospace;
   font-size: 1.4rem;
   font-weight: 700;
@@ -243,9 +252,105 @@ a:hover {
   color: var(--accent);
   cursor: pointer;
   user-select: none;
+  padding: 0;
+  line-height: 1;
 }
 .room-key-display:hover {
   opacity: 0.75;
+}
+.room-key-display:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 6px;
+}
+
+.room-share-anchor:hover .room-share-popover,
+.room-share-popover.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.room-share-popover {
+  position: absolute;
+  top: calc(100% + 0.85rem);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.room-share-popover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0.85rem;
+  bottom: 100%;
+  pointer-events: auto;
+}
+
+.room-share-arrow {
+  position: absolute;
+  left: 1.2rem;
+  bottom: 100%;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--border);
+  pointer-events: none;
+}
+
+.room-share-arrow::after {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 1px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid var(--surface);
+}
+
+.room-share-qr {
+  display: block;
+  width: 176px;
+  height: 176px;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.room-share-hint {
+  display: block;
+  max-width: 176px;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.share-copy-btn {
+  width: auto;
+  min-width: 0;
+  margin-top: 0.1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
 }
 
 .countdown {
@@ -1004,6 +1109,15 @@ a:hover {
   }
   .sidebar {
     display: none;
+  }
+  .room-share-popover {
+    left: 0;
+    max-width: calc(100vw - 1.5rem);
+    transform: translateY(-6px);
+  }
+  .room-share-anchor:hover .room-share-popover,
+  .room-share-popover.visible {
+    transform: translateY(0);
   }
   #theme-toggle-btn {
     display: none;

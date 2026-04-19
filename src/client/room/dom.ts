@@ -1,6 +1,9 @@
 export interface RoomDom {
   roomKeyEl: HTMLElement | null;
+  roomSharePopover: HTMLElement | null;
+  roomShareQr: HTMLImageElement | null;
   countdownEl: HTMLElement | null;
+  copyRoomLinkBtn: HTMLButtonElement | null;
   extendBtn: HTMLButtonElement | null;
   onlineCountEl: HTMLElement | null;
   userListEl: HTMLElement | null;
@@ -57,7 +60,10 @@ export function getRoomMaxFileSizeMb(roomRoot: HTMLElement): number {
 export function createRoomDom(): RoomDom {
   return {
     roomKeyEl: document.getElementById("room-key"),
+    roomSharePopover: document.getElementById("room-share-popover"),
+    roomShareQr: document.getElementById("room-share-qr") as HTMLImageElement | null,
     countdownEl: document.getElementById("countdown"),
+    copyRoomLinkBtn: document.getElementById("copy-room-link-btn") as HTMLButtonElement | null,
     extendBtn: document.getElementById("extend-btn") as HTMLButtonElement | null,
     onlineCountEl: document.getElementById("online-count"),
     userListEl: document.getElementById("user-list"),
