@@ -16,21 +16,24 @@ export function isNearBottom(context: RoomPageContext, threshold = 80): boolean 
   return distance <= threshold;
 }
 
-export function scheduleBottomCorrection(context: RoomPageContext, passes = 1): void {
+export function scheduleBottomCorrection(context: RoomPageContext, passes = 1, force = false): void {
   const { messageList } = context.dom;
   const { state } = context;
-  if (!messageList || !state.stickToBottom) {
+  if (!messageList || (!state.stickToBottom && !force)) {
     state.bottomCorrectionPasses = 0;
+    state.bottomCorrectionForced = false;
     return;
   }
 
   state.bottomCorrectionPasses = Math.max(state.bottomCorrectionPasses, passes);
+  state.bottomCorrectionForced = state.bottomCorrectionForced || force;
   if (state.bottomCorrectionFrame) return;
 
   const run = (): void => {
     state.bottomCorrectionFrame = 0;
-    if (!messageList || !state.stickToBottom) {
+    if (!messageList || (!state.stickToBottom && !state.bottomCorrectionForced)) {
       state.bottomCorrectionPasses = 0;
+      state.bottomCorrectionForced = false;
       return;
     }
 
@@ -39,7 +42,10 @@ export function scheduleBottomCorrection(context: RoomPageContext, passes = 1): 
 
     if (state.bottomCorrectionPasses > 0) {
       state.bottomCorrectionFrame = requestAnimationFrame(run);
+      return;
     }
+
+    state.bottomCorrectionForced = false;
   };
 
   state.bottomCorrectionFrame = requestAnimationFrame(run);
@@ -53,35 +59,59 @@ export function scrollToBottom(context: RoomPageContext): void {
   scheduleBottomCorrection(context);
 }
 
-export function watchVisualMediaLayout(context: RoomPageContext, root: HTMLElement): void {
+export function watchVisualMediaLayout(
+  context: RoomPageContext,
+  root: HTMLElement,
+  keepBottomAligned: boolean
+): void {
   const images = root.querySelectorAll<HTMLImageElement>("img");
   const videos = root.querySelectorAll<HTMLVideoElement>("video");
   if (!images.length && !videos.length) return;
 
   const correctBottom = (): void => {
-    if (!context.state.stickToBottom) return;
-    scheduleBottomCorrection(context, 2);
+    if (!keepBottomAligned) return;
+    scheduleBottomCorrection(context, 2, true);
   };
+
+  let stableTimer: number | null = null;
+  let maxLifetimeTimer: number | null = null;
+  let disconnected = false;
+  const disconnectObserver = (observer: ResizeObserver): void => {
+    if (disconnected) return;
+    disconnected = true;
+    observer.disconnect();
+    if (stableTimer != null) {
+      window.clearTimeout(stableTimer);
+      stableTimer = null;
+    }
+    if (maxLifetimeTimer != null) {
+      window.clearTimeout(maxLifetimeTimer);
+      maxLifetimeTimer = null;
+    }
+  };
+
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => {
+      correctBottom();
+      if (stableTimer != null) {
+        window.clearTimeout(stableTimer);
+      }
+      stableTimer = window.setTimeout(() => {
+        stableTimer = null;
+        disconnectObserver(observer);
+      }, 240);
+    });
+    observer.observe(root);
+    maxLifetimeTimer = window.setTimeout(() => disconnectObserver(observer), 2000);
+  }
 
   images.forEach((img) => {
     img.addEventListener("load", correctBottom, { once: true });
-
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(correctBottom);
-      observer.observe(img);
-      setTimeout(() => observer.disconnect(), 5000);
-    }
   });
 
   videos.forEach((video) => {
     video.addEventListener("loadedmetadata", correctBottom, { once: true });
     video.addEventListener("loadeddata", correctBottom, { once: true });
-
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(correctBottom);
-      observer.observe(video);
-      setTimeout(() => observer.disconnect(), 5000);
-    }
   });
 }
 
@@ -164,7 +194,7 @@ export function renderMessage(context: RoomPageContext, msg: Message, keepBottom
   const el = buildMessageEl(context, msg);
   context.dom.messageList?.appendChild(el);
   if (keepBottomAligned) {
-    watchVisualMediaLayout(context, el);
+    watchVisualMediaLayout(context, el, keepBottomAligned);
   }
 }
 

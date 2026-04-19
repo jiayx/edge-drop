@@ -44,6 +44,7 @@ export interface RoomPageState {
   stickToBottom: boolean;
   bottomCorrectionFrame: number;
   bottomCorrectionPasses: number;
+  bottomCorrectionForced: boolean;
   isWsConnected: boolean;
   pendingOutgoingMessages: Map<string, PendingOutgoingMessage>;
   onlineUsers: UserRecord[];
@@ -72,6 +73,7 @@ export function createRoomPageState(): RoomPageState {
     stickToBottom: true,
     bottomCorrectionFrame: 0,
     bottomCorrectionPasses: 0,
+    bottomCorrectionForced: false,
     isWsConnected: false,
     pendingOutgoingMessages: new Map<string, PendingOutgoingMessage>(),
     onlineUsers: [],

@@ -178,8 +178,9 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
     }
 
     if (pending.status === "pending") {
-      watchVisualMediaLayout(context, nextEl);
-      if (context.state.stickToBottom) {
+      const keepBottomAligned = context.state.stickToBottom;
+      watchVisualMediaLayout(context, nextEl, keepBottomAligned);
+      if (keepBottomAligned) {
         scrollToBottom(context);
       }
     }
