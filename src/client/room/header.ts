@@ -1,4 +1,5 @@
 import { applyThemePreference, getAppliedTheme, getStoredThemePreference } from "@/client/theme";
+import { MAX_ROOM_DURATION_HOURS } from "@/lib/expiry";
 
 import type { RoomPageContext, ThemeMode, ThemePreference } from "./state";
 import { flash } from "./utils";
@@ -108,6 +109,7 @@ export function createRoomHeaderController(
         if (!res.ok) throw new Error("Failed to extend");
         const data = await res.json() as { ok: boolean; expiresAt: number };
         setExpiresAt(data.expiresAt);
+        deps.appendLocalSystemNotice(`Room extended. Max duration: ${MAX_ROOM_DURATION_HOURS} hours.`);
       } catch (err) {
         deps.appendLocalSystemNotice(err instanceof Error ? err.message : "Failed to extend room");
       } finally {

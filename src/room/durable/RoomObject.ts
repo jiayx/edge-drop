@@ -7,6 +7,7 @@ import type {
   ServerMessage,
 } from "@/room/types";
 import { logUnexpected } from "@/lib/errors";
+import { MAX_ROOM_DURATION_HOURS, roomTtlMs } from "@/lib/expiry";
 
 const MSG_KEY_PAD = 10;
 
@@ -252,10 +253,13 @@ export class RoomObject {
     const { hours } = await request.json<{ hours: number }>();
     const meta = await this.state.storage.get<RoomMeta>("meta");
     if (!meta) return new Response("Room not initialized", { status: 400 });
-    meta.expiresAt = Date.now() + hours * 60 * 60 * 1000;
-    await this.state.storage.put("meta", meta);
 
-    await this.appendSystemMessage(`Room extended by ${hours} hour(s)`);
+    const now = Date.now();
+    const requestedExpiresAt = meta.expiresAt + roomTtlMs(hours);
+    const maxExpiresAt = now + roomTtlMs(MAX_ROOM_DURATION_HOURS);
+    meta.expiresAt = Math.min(requestedExpiresAt, maxExpiresAt);
+
+    await this.state.storage.put("meta", meta);
 
     const extendMsg: ServerMessage = { type: "room:extended", expiresAt: meta.expiresAt };
     this.broadcastAll(extendMsg);
