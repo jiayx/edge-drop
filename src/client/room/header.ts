@@ -37,6 +37,7 @@ function setupRoomShare(context: RoomPageContext): void {
 
   let touchPinnedOpen = false;
   let copyLinkTriggeredByKeyboard = false;
+  let roomKeyTriggeredByKeyboard = false;
 
   const syncOpenState = (open: boolean): void => {
     popover.classList.toggle("visible", open);
@@ -72,7 +73,18 @@ function setupRoomShare(context: RoomPageContext): void {
       event.preventDefault();
       touchPinnedOpen = !touchPinnedOpen;
       syncOpenState(touchPinnedOpen);
+      return;
     }
+    if (!roomKeyTriggeredByKeyboard) {
+      trigger.blur();
+    }
+    roomKeyTriggeredByKeyboard = false;
+  });
+  trigger.addEventListener("keydown", (event) => {
+    roomKeyTriggeredByKeyboard = event.key === "Enter" || event.key === " ";
+  });
+  trigger.addEventListener("pointerdown", () => {
+    roomKeyTriggeredByKeyboard = false;
   });
 
   document.addEventListener("click", (event) => {
