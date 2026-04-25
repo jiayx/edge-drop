@@ -1,4 +1,5 @@
 import { formatFileSize } from "@/client/file";
+import { fileIcon } from "@/lib/icons";
 import type { Message } from "@/room/types";
 
 import { renderTextWithMentions } from "./mention";
@@ -141,7 +142,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
     contentHtml = `<div class="bubble-image">
       <a href="${url}" target="_blank"><img class="bubble-img" src="${url}" alt="${escHtml(msg.fileName ?? "image")}" loading="lazy"></a>
       <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "image")}">
-        <span class="file-icon">⬇</span>
+        ${fileIcon("download")}
         <span class="file-name">${escHtml(msg.fileName ?? "image")}</span>
         <span class="file-size">${size}</span>
       </a>
@@ -152,7 +153,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
     contentHtml = `<div class="bubble-audio-wrap">
       <audio class="bubble-audio" controls preload="none" src="${url}" style="width:100%;max-width:320px"></audio>
       <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "audio")}">
-        <span class="file-icon">⬇</span>
+        ${fileIcon("download")}
         <span class="file-name">${escHtml(msg.fileName ?? "audio")}</span>
         <span class="file-size">${size}</span>
       </a>
@@ -163,7 +164,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
     contentHtml = `<div class="bubble-video">
       <video class="bubble-video-player" src="${url}" controls preload="metadata"></video>
       <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "video")}">
-        <span class="file-icon">⬇</span>
+        ${fileIcon("download")}
         <span class="file-name">${escHtml(msg.fileName ?? "video")}</span>
         <span class="file-size">${size}</span>
       </a>
@@ -172,7 +173,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
     const url = fileUrl(context.roomKey, msg.content);
     const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
     contentHtml = `<a class="bubble-file" href="${url}" download="${escHtml(msg.fileName ?? "file")}">
-      <span class="file-icon">📎</span>
+      ${fileIcon("paperclip")}
       <span class="file-name">${escHtml(msg.fileName ?? "file")}</span>
       <span class="file-size">${size}</span>
     </a>`;

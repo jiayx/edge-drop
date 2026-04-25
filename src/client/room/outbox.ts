@@ -1,5 +1,6 @@
 import { formatFileSize, isAudioMime, isImageMime, isVideoMime } from "@/client/file";
 import { uploadFile } from "@/client/upload";
+import { fileIcon } from "@/lib/icons";
 import type { Message } from "@/room/types";
 
 import { buildMessageEl, scrollToBottom, watchVisualMediaLayout } from "./messages";
@@ -115,7 +116,7 @@ function buildPendingFileTransferEl(context: RoomPageContext, pending: PendingOu
       </div>
       <div class="bubble-content">
         <div class="bubble-file pending-file-transfer">
-          <span class="file-icon">⬆</span>
+          ${fileIcon("upload")}
           <span class="file-name">${escHtml(fileName)}</span>
           <span class="file-size">(${formatFileSize(fileSizeBytes)})</span>
         </div>

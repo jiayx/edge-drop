@@ -1,5 +1,6 @@
 import { applyThemePreference, getAppliedTheme, getStoredThemePreference } from "@/client/theme";
 import { MAX_ROOM_DURATION_HOURS } from "@/lib/expiry";
+import { buttonIcon } from "@/lib/icons";
 
 import type { RoomPageContext, ThemeMode, ThemePreference } from "./state";
 import { flash } from "./utils";
@@ -147,11 +148,14 @@ function syncTheme(context: RoomPageContext): void {
   const preference = applyThemePreference(context.dom.themeViewport);
   const theme = getAppliedTheme(context.dom.themeViewport, preference);
   if (!context.dom.themeToggleBtn) return;
-  context.dom.themeToggleBtn.textContent =
-    preference === "system" ? "◐" : theme === "dark" ? "☾" : "☀";
+  context.dom.themeToggleBtn.innerHTML =
+    preference === "system" ? buttonIcon("monitor") : theme === "dark" ? buttonIcon("moon") : buttonIcon("sun");
   context.dom.themeToggleBtn.title = `Theme: ${
     preference === "system" ? `System (${theme})` : theme
   }. Click to switch.`;
+  context.dom.themeToggleBtn.setAttribute("aria-label", `Switch theme. Current: ${
+    preference === "system" ? `system (${theme})` : theme
+  }`);
 }
 
 export function syncMessageInputPlaceholder(context: RoomPageContext): void {

@@ -1,3 +1,5 @@
+import { Icon } from "@/lib/icons";
+
 export interface RoomPageProps {
   roomKey: string;
   maxFileSizeMb: number;
@@ -38,14 +40,15 @@ export function RoomPage(props: RoomPageProps) {
         </div>
         <div id="countdown" class="countdown"></div>
         <span class="header-gap"></span>
-        <a href="/" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;text-decoration:none">
-          ← Home
+        <a href="/" class="btn btn-secondary home-link-btn" style="font-size:0.8rem;padding:0.4rem 0.8rem;text-decoration:none">
+          <Icon name="home" />
+          <span>Home</span>
         </a>
         <button id="extend-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">
           +24h
         </button>
-        <button id="theme-toggle-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">
-          Theme
+        <button id="theme-toggle-btn" class="btn btn-secondary icon-btn" title="Theme: System. Click to switch." aria-label="Switch theme">
+          <Icon name="monitor" />
         </button>
       </header>
 
@@ -107,11 +110,11 @@ export function RoomPage(props: RoomPageProps) {
       <footer class="input-bar">
         <button
           id="attach-btn"
-          class="btn btn-secondary"
+          class="btn btn-secondary attach-btn"
           title="Attach file"
-          style="align-self:stretch;padding:0 0.8rem;font-size:1.1rem"
+          aria-label="Attach file"
         >
-          📎
+          <Icon name="paperclip" />
         </button>
         <div id="composer-wrap" class="composer-wrap">
           <textarea
