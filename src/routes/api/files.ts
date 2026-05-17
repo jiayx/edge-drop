@@ -44,6 +44,17 @@ function buildContentDisposition(disposition: "inline" | "attachment", fileName:
   return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${utf8Name}`;
 }
 
+function getContentDispositionMode(mimeType: string, fileName: string): "inline" | "attachment" {
+  const ext = getExtension(fileName);
+  if (ext === ".svg" || mimeType === "image/svg+xml") {
+    return "attachment";
+  }
+  if (mimeType.startsWith("image/") || mimeType.startsWith("audio/") || mimeType.startsWith("video/")) {
+    return "inline";
+  }
+  return "attachment";
+}
+
 // POST /api/v1/rooms/:key/files
 export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
@@ -101,7 +112,7 @@ export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise
   const directUpload = await createPresignedUpload(env, {
     objectKey,
     mimeType,
-    contentDisposition: buildContentDisposition("inline", fileName),
+    contentDisposition: buildContentDisposition(getContentDispositionMode(mimeType, fileName), fileName),
     originalFileName: fileName,
     expiresInSeconds: PRESIGNED_UPLOAD_TTL_SECONDS,
   });
@@ -161,9 +172,8 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
     headers.set("accept-ranges", "bytes");
   }
   const originalFileName = decodeOriginalFileName(upstream.headers.get("x-amz-meta-originalfilename") ?? undefined);
-  if (!headers.has("content-disposition")) {
-    headers.set("content-disposition", buildContentDisposition("inline", originalFileName));
-  }
+  const contentType = headers.get("content-type") ?? "application/octet-stream";
+  headers.set("content-disposition", buildContentDisposition(getContentDispositionMode(contentType, originalFileName), originalFileName));
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }

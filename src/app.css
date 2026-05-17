@@ -209,6 +209,13 @@ a:hover {
   height: 0.95rem;
 }
 
+.room-header-action {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1188,17 +1195,13 @@ a:hover {
   }
   .home-link-btn {
     gap: 0.25rem;
-    min-height: 2rem;
     padding: 0.35rem 0.5rem !important;
     font-size: 0.76rem !important;
-    white-space: nowrap;
   }
   #extend-btn {
     flex: 0 0 auto;
-    min-height: 2rem;
     padding: 0.35rem 0.5rem !important;
     font-size: 0.76rem !important;
-    white-space: nowrap;
   }
   .sidebar {
     display: none;

@@ -40,11 +40,11 @@ export function RoomPage(props: RoomPageProps) {
         </div>
         <div id="countdown" class="countdown"></div>
         <span class="header-gap"></span>
-        <a href="/" class="btn btn-secondary home-link-btn" style="font-size:0.8rem;padding:0.4rem 0.8rem;text-decoration:none">
+        <a href="/" class="btn btn-secondary room-header-action home-link-btn" style="text-decoration:none">
           <Icon name="home" />
           <span>Home</span>
         </a>
-        <button id="extend-btn" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem">
+        <button id="extend-btn" class="btn btn-secondary room-header-action">
           +24h
         </button>
         <button id="theme-toggle-btn" class="btn btn-secondary icon-btn" title="Theme: System. Click to switch." aria-label="Switch theme">
@@ -133,7 +133,6 @@ export function RoomPage(props: RoomPageProps) {
           type="file"
           multiple
           style="display:none"
-          accept="image/*,audio/*,video/*,text/*,application/pdf,application/json,application/zip,application/epub+zip,text/markdown,text/csv,application/rtf,.epub,.md,.csv,.rtf,.7z,.rar,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.heic,.heif"
         />
       </footer>
     </div>
