@@ -1145,6 +1145,21 @@ a:hover {
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  .lobby-card {
+    padding: 2rem 1rem;
+  }
+  .digit-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.4rem;
+  }
+  .digit-input {
+    width: 100%;
+    min-width: 0;
+    height: 56px;
+    font-size: 1.45rem;
+  }
   .room-layout {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto 1fr auto;
@@ -1153,6 +1168,37 @@ a:hover {
       "mobile"
       "messages"
       "input";
+  }
+  .room-header {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    padding: 0.55rem 0.65rem;
+  }
+  .room-key-display {
+    font-size: 1.2rem;
+    letter-spacing: 3px;
+  }
+  .countdown {
+    padding: 0.16rem 0.35rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .header-gap {
+    min-width: 0;
+  }
+  .home-link-btn {
+    gap: 0.25rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap;
+  }
+  #extend-btn {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap;
   }
   .sidebar {
     display: none;
