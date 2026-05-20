@@ -1,4 +1,4 @@
-export type IconName = "paperclip" | "upload" | "download" | "monitor" | "moon" | "sun" | "home";
+export type IconName = "paperclip" | "upload" | "download" | "monitor" | "moon" | "sun" | "home" | "copy" | "check";
 
 type IconAttrs = Record<string, string | number>;
 type IconNode = readonly ["path" | "circle" | "rect", IconAttrs];
@@ -40,6 +40,13 @@ const icons: Record<IconName, readonly IconNode[]> = {
     ["path", { d: "m3 10.5 9-7 9 7" }],
     ["path", { d: "M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" }],
     ["path", { d: "M9 21v-6h6v6" }],
+  ],
+  copy: [
+    ["rect", { x: 8, y: 8, width: 12, height: 12, rx: 2 }],
+    ["path", { d: "M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" }],
+  ],
+  check: [
+    ["path", { d: "m20 6-11 11-5-5" }],
   ],
 };
 

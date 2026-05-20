@@ -1,13 +1,80 @@
 import { formatFileSize } from "@/client/file";
-import { fileIcon } from "@/lib/icons";
+import { buttonIcon, fileIcon } from "@/lib/icons";
 import type { Message } from "@/room/types";
 
-import { renderTextWithMentions } from "./mention";
 import type { RoomPageContext } from "./state";
+import { renderMessageText } from "./text";
 import { escHtml } from "./utils";
 
 function fileUrl(roomKey: string, objectKey: string): string {
   return `/api/v1/rooms/${roomKey}/files/${encodeURIComponent(objectKey)}`;
+}
+
+const messageCopyText = new WeakMap<HTMLElement, string>();
+const messageCopyResetTimers = new WeakMap<HTMLButtonElement, number>();
+
+function copyButtonHtml(): string {
+  return `<button class="message-copy-btn" type="button" aria-label="Copy message" title="Copy message">
+    ${buttonIcon("copy")}
+  </button>`;
+}
+
+function setCopyButtonCopied(button: HTMLButtonElement): void {
+  const existingTimer = messageCopyResetTimers.get(button);
+  if (existingTimer != null) {
+    window.clearTimeout(existingTimer);
+  }
+  button.innerHTML = buttonIcon("check");
+  button.setAttribute("aria-label", "Copied");
+  button.setAttribute("title", "Copied");
+  button.classList.add("copied");
+  const resetTimer = window.setTimeout(() => {
+    button.innerHTML = buttonIcon("copy");
+    button.setAttribute("aria-label", "Copy message");
+    button.setAttribute("title", "Copy message");
+    button.classList.remove("copied");
+    messageCopyResetTimers.delete(button);
+  }, 1400);
+  messageCopyResetTimers.set(button, resetTimer);
+}
+
+function fallbackCopyText(text: string): void {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand("copy");
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      fallbackCopyText(text);
+      return;
+    }
+  }
+
+  fallbackCopyText(text);
+}
+
+async function copyMessageText(button: HTMLButtonElement): Promise<void> {
+  const messageEl = button.closest<HTMLElement>(".message");
+  if (!messageEl) return;
+  const text = messageCopyText.get(messageEl);
+  if (text == null) return;
+  await copyTextToClipboard(text);
+  setCopyButtonCopied(button);
 }
 
 export function isNearBottom(context: RoomPageContext, threshold = 80): boolean {
@@ -135,7 +202,8 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
 
   let contentHtml: string;
   if (msg.type === "text") {
-    contentHtml = `<p class="bubble-text">${renderTextWithMentions(context, msg.content, msg.senderId)}</p>`;
+    contentHtml = `<p class="bubble-text">${renderMessageText(context, msg.content, msg.senderId)}</p>`;
+    messageCopyText.set(el, msg.content);
   } else if (msg.type === "image") {
     const url = fileUrl(context.roomKey, msg.content);
     const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
@@ -184,6 +252,7 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
       <div class="bubble-meta">
         <span class="sender-name">${escHtml(msg.senderName)}</span>
         <span class="bubble-time">${time}</span>
+        ${msg.type === "text" ? copyButtonHtml() : ""}
       </div>
       <div class="bubble-content">${contentHtml}</div>
     </div>`;
@@ -227,6 +296,14 @@ export function bindMessageListScroll(context: RoomPageContext): void {
     },
     { passive: true }
   );
+  context.dom.messageList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const copyBtn = target.closest<HTMLButtonElement>(".message-copy-btn");
+    if (!copyBtn) return;
+    event.preventDefault();
+    void copyMessageText(copyBtn);
+  });
 }
 
 export function registerScrollObserver(context: RoomPageContext, onIntersect: () => void): void {

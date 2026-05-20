@@ -1,5 +1,6 @@
 import type { UserRecord } from "@/room/types";
 
+import { isMentionBoundaryChar, isMentionPrefixChar } from "./mentionRules";
 import type { RoomPageContext } from "./state";
 import { escHtml } from "./utils";
 
@@ -15,19 +16,6 @@ function normalizeMentionQuery(value: string): string {
 
 function getDisplayMention(displayName: string): string {
   return /\s/.test(displayName) ? `@"${displayName}"` : `@${displayName}`;
-}
-
-function createMentionMarkup(displayName: string, isOwn: boolean): string {
-  const className = isOwn ? "bubble-mention own" : "bubble-mention";
-  return `<span class="${className}">@${escHtml(displayName)}</span>`;
-}
-
-function isMentionBoundaryChar(char: string | undefined): boolean {
-  return !char || /\s|[.,!?;:)\]}]/.test(char);
-}
-
-function isMentionPrefixChar(char: string | undefined): boolean {
-  return !char || /\s|\(/.test(char);
 }
 
 function getMentionMatchLength(text: string, atIndex: number, displayName: string): number {
@@ -102,62 +90,6 @@ function setMentionMenuHidden(context: RoomPageContext): void {
 
 function focusMessageInput(context: RoomPageContext): void {
   context.dom.messageInput?.focus();
-}
-
-export function renderTextWithMentions(
-  context: RoomPageContext,
-  text: string,
-  senderId: string
-): string {
-  const isOwn = senderId === context.identity.userId;
-  const mentionNames = new Set<string>([
-    context.identity.displayName,
-    ...Array.from(context.state.knownUsers.values()).map((user) => user.displayName),
-  ]);
-  const knownNames = Array.from(mentionNames).sort((a, b) => b.length - a.length);
-
-  if (!knownNames.length) {
-    return escHtml(text).replace(/\n/g, "<br>");
-  }
-
-  let html = "";
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index] ?? "";
-    if (char === "\n") {
-      html += "<br>";
-      continue;
-    }
-
-    if (
-      char === "@" &&
-      isMentionPrefixChar(text[index - 1])
-    ) {
-      if (text[index + 1] === "\"") {
-        const closingQuote = text.indexOf("\"", index + 2);
-        const displayName = closingQuote > index ? text.slice(index + 2, closingQuote) : "";
-        if (closingQuote > index && mentionNames.has(displayName) && isMentionBoundaryChar(text[closingQuote + 1])) {
-          html += createMentionMarkup(displayName, isOwn);
-          index = closingQuote;
-          continue;
-        }
-      }
-
-      const matchedName = knownNames.find((displayName) =>
-        text.startsWith(displayName, index + 1) &&
-        isMentionBoundaryChar(text[index + 1 + displayName.length])
-      );
-      if (matchedName) {
-        html += createMentionMarkup(matchedName, isOwn);
-        index += matchedName.length;
-        continue;
-      }
-    }
-
-    html += escHtml(char);
-  }
-
-  return html;
 }
 
 export function textMentionsDisplayName(text: string, displayName: string): boolean {

@@ -679,10 +679,62 @@ a:hover {
   color: var(--text-dim);
 }
 
+.message-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-left: auto;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.message-copy-btn .btn-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.message-copy-btn:hover,
+.message-copy-btn:focus-visible,
+.message-copy-btn.copied {
+  background: var(--surface2);
+  color: var(--text);
+  opacity: 1;
+}
+
+.message.own .message-copy-btn {
+  color: var(--text-on-accent);
+  opacity: 0.78;
+}
+
+.message.own .message-copy-btn:hover,
+.message.own .message-copy-btn:focus-visible,
+.message.own .message-copy-btn.copied {
+  background: color-mix(in srgb, var(--text-on-accent) 14%, transparent);
+  color: var(--text-on-accent);
+  opacity: 1;
+}
+
 .bubble-text {
   font-size: 0.92rem;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+.bubble-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  overflow-wrap: anywhere;
+}
+
+.message.own .bubble-link {
+  color: var(--text-on-accent);
 }
 
 .bubble-mention {
