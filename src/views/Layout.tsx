@@ -1,4 +1,5 @@
 import { Link, ViteClient } from "vite-ssr-components/hono";
+import { GoogleAnalytics } from "@/views/GoogleAnalytics";
 
 export interface LayoutProps {
   title: string;
@@ -12,22 +13,7 @@ export function Layout(props: LayoutProps) {
     <html lang="en">
       <head>
         <meta charSet="UTF-8" />
-        {import.meta.env.PROD && !props.admin && (
-          <>
-            <script
-              async
-              src="https://www.googletagmanager.com/gtag/js?id=G-K8QNWFNXLL"
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-K8QNWFNXLL');`,
-              }}
-            />
-          </>
-        )}
+        {!props.admin && <GoogleAnalytics />}
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{props.title}</title>
         <meta name="description" content={props.description} />
