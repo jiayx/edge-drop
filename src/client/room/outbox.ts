@@ -1,28 +1,22 @@
-import { formatFileSize, isAudioMime, isImageMime, isVideoMime } from "@/client/file";
+import type { ThemeMode, ThemePreference } from "@/client/theme";
+import { formatFileSize, getFileMessageType } from "@/lib/file";
 import { uploadFile } from "@/client/upload";
 import { fileIcon } from "@/lib/icons";
 import type { Message } from "@/room/types";
 
 import { buildMessageEl, scrollToBottom, watchVisualMediaLayout } from "./messages";
 import type { PendingOutgoingMessage, RoomPageContext } from "./state";
-import { escHtml } from "./utils";
+import { escHtml } from "@/client/utils";
 
 const MAX_AUTO_RETRY_COUNT = 3;
 
 interface OutboxDeps {
   appendLocalSystemNotice: (text: string) => void;
-  cycleThemePreference: () => import("./state").ThemePreference;
-  getAppliedTheme: (preference: import("./state").ThemePreference) => import("./state").ThemeMode;
+  cycleThemePreference: () => ThemePreference;
+  getAppliedTheme: (preference: ThemePreference) => ThemeMode;
   applyRename: (name: string) => boolean;
   handleMentionKeydown: (event: KeyboardEvent) => boolean;
   syncMentionMenu: () => void;
-}
-
-function getFileMessageType(mimeType: string): Message["type"] {
-  if (isImageMime(mimeType)) return "image";
-  if (isAudioMime(mimeType)) return "audio";
-  if (isVideoMime(mimeType)) return "video";
-  return "file";
 }
 
 function createOptimisticTextMessage(context: RoomPageContext, text: string, tempId: string): Message {
@@ -62,28 +56,6 @@ function createUploadingFileMessage(
     status: "uploading",
     file,
     uploadProgress: 0,
-  };
-}
-
-function createOptimisticFileMessage(
-  context: RoomPageContext,
-  objectKey: string,
-  fileName: string,
-  mimeType: string,
-  sizeBytes: number,
-  tempId: string
-): Message {
-  return {
-    id: tempId,
-    seq: -1,
-    type: getFileMessageType(mimeType),
-    senderId: context.identity.userId,
-    senderName: context.identity.displayName,
-    content: objectKey,
-    fileName,
-    fileMime: mimeType,
-    fileSizeBytes: sizeBytes,
-    createdAt: Date.now(),
   };
 }
 
@@ -162,12 +134,13 @@ function buildPendingOutgoingMessageEl(
 }
 
 export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
+  const pendingOutgoingMessages = new Map<string, PendingOutgoingMessage>();
   let pastedFiles: File[] = [];
   let pastedPreviewUrl: string | null = null;
   let dragDepth = 0;
 
   const syncPendingOutgoingMessageEl = (tempId: string): void => {
-    const pending = context.state.pendingOutgoingMessages.get(tempId);
+    const pending = pendingOutgoingMessages.get(tempId);
     if (!pending) return;
 
     const nextEl = buildPendingOutgoingMessageEl(context, pending);
@@ -188,17 +161,17 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
   };
 
   const sendPendingOutgoingMessage = (tempId: string): void => {
-    const pending = context.state.pendingOutgoingMessages.get(tempId);
+    const pending = pendingOutgoingMessages.get(tempId);
     if (!pending || pending.status !== "pending" || !pending.payload) return;
     context.state.ws?.send(pending.payload);
     syncPendingOutgoingMessageEl(tempId);
   };
 
   const uploadPendingFileMessage = async (tempId: string): Promise<void> => {
-    const pending = context.state.pendingOutgoingMessages.get(tempId);
+    const pending = pendingOutgoingMessages.get(tempId);
     if (!pending || pending.kind !== "file" || !pending.file) return;
     const uploadAbortController = new AbortController();
-    context.state.pendingOutgoingMessages.set(tempId, { ...pending, uploadAbortController });
+    pendingOutgoingMessages.set(tempId, { ...pending, uploadAbortController });
     syncPendingOutgoingMessageEl(tempId);
 
     try {
@@ -207,25 +180,23 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
         file: pending.file,
         signal: uploadAbortController.signal,
         onProgress: (pct) => {
-          const current = context.state.pendingOutgoingMessages.get(tempId);
+          const current = pendingOutgoingMessages.get(tempId);
           if (!current || current.status !== "uploading") return;
-          context.state.pendingOutgoingMessages.set(tempId, { ...current, uploadProgress: pct });
+          pendingOutgoingMessages.set(tempId, { ...current, uploadProgress: pct });
           syncPendingOutgoingMessageEl(tempId);
         },
       });
 
-      const current = context.state.pendingOutgoingMessages.get(tempId);
+      const current = pendingOutgoingMessages.get(tempId);
       if (!current || current.status !== "uploading") return;
       const nextPending: PendingOutgoingMessage = {
         ...current,
-        optimisticMessage: createOptimisticFileMessage(
-          context,
-          result.objectKey,
-          result.fileName,
-          result.mimeType,
-          result.sizeBytes,
-          tempId
-        ),
+        optimisticMessage: {
+          ...current.optimisticMessage,
+          content: result.objectKey,
+          senderName: context.identity.displayName,
+          createdAt: Date.now(),
+        },
         payload: {
           type: "msg:file",
           objectKey: result.objectKey,
@@ -240,17 +211,16 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
         errorMessage: undefined,
         uploadAbortController: undefined,
       };
-      context.state.pendingOutgoingMessages.set(tempId, nextPending);
-      syncPendingOutgoingMessageEl(tempId);
+      pendingOutgoingMessages.set(tempId, nextPending);
       sendPendingOutgoingMessage(tempId);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         return;
       }
       const message = err instanceof Error ? err.message : "Upload failed";
-      const current = context.state.pendingOutgoingMessages.get(tempId);
+      const current = pendingOutgoingMessages.get(tempId);
       if (!current) return;
-      context.state.pendingOutgoingMessages.set(tempId, {
+      pendingOutgoingMessages.set(tempId, {
         ...current,
         status: "upload-failed",
         errorMessage: message,
@@ -262,23 +232,20 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
 
   const queuePendingOutgoingMessage = (pending: PendingOutgoingMessage): void => {
     const tempId = pending.tempId;
-    context.state.pendingOutgoingMessages.set(tempId, pending);
-    syncPendingOutgoingMessageEl(tempId);
-    scrollToBottom(context);
+    pendingOutgoingMessages.set(tempId, pending);
     if (pending.status === "pending") {
       sendPendingOutgoingMessage(tempId);
-      return;
-    }
-    if (pending.status === "uploading") {
+    } else if (pending.status === "uploading") {
       void uploadPendingFileMessage(tempId);
     }
+    scrollToBottom(context);
   };
 
   const cancelPendingOutgoingMessage = (tempId: string): void => {
-    const pending = context.state.pendingOutgoingMessages.get(tempId);
+    const pending = pendingOutgoingMessages.get(tempId);
     if (!pending || pending.status !== "uploading") return;
     pending.uploadAbortController?.abort();
-    context.state.pendingOutgoingMessages.set(tempId, {
+    pendingOutgoingMessages.set(tempId, {
       ...pending,
       status: "upload-failed",
       uploadAbortController: undefined,
@@ -288,36 +255,34 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
   };
 
   const retryPendingOutgoingMessage = (tempId: string): void => {
-    const pending = context.state.pendingOutgoingMessages.get(tempId);
+    const pending = pendingOutgoingMessages.get(tempId);
     if (!pending) return;
     if (pending.status === "uploading") return;
     if (pending.status === "upload-failed") {
-      context.state.pendingOutgoingMessages.set(tempId, {
+      pendingOutgoingMessages.set(tempId, {
         ...pending,
         autoRetryCount: 0,
         status: "uploading",
         uploadProgress: 0,
         errorMessage: undefined,
       });
-      syncPendingOutgoingMessageEl(tempId);
       void uploadPendingFileMessage(tempId);
       return;
     }
-    context.state.pendingOutgoingMessages.set(tempId, { ...pending, autoRetryCount: 0 });
-    syncPendingOutgoingMessageEl(tempId);
+    pendingOutgoingMessages.set(tempId, { ...pending, autoRetryCount: 0 });
     sendPendingOutgoingMessage(tempId);
   };
 
   const flushPendingOutgoingMessages = (): void => {
-    if (!context.state.isWsConnected || context.state.pendingOutgoingMessages.size === 0) return;
-    for (const [tempId, pending] of context.state.pendingOutgoingMessages) {
+    if (!context.state.isWsConnected || pendingOutgoingMessages.size === 0) return;
+    for (const [tempId, pending] of pendingOutgoingMessages) {
       if (pending.status !== "pending" || !pending.payload) continue;
       if (pending.autoRetryCount >= MAX_AUTO_RETRY_COUNT) {
         syncPendingOutgoingMessageEl(tempId);
         continue;
       }
       context.state.ws?.send(pending.payload);
-      context.state.pendingOutgoingMessages.set(tempId, {
+      pendingOutgoingMessages.set(tempId, {
         ...pending,
         autoRetryCount: pending.autoRetryCount + 1,
       });
@@ -376,7 +341,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
     if (context.dom.messageInput) context.dom.messageInput.value = "";
   };
 
-  const handleFileUploads = async (files: File[]): Promise<void> => {
+  const handleFileUploads = (files: File[]): void => {
     for (const file of files) {
       if (file.size > context.maxFileSizeBytes) {
         deps.appendLocalSystemNotice(`"${file.name}" exceeds the ${context.maxFileSizeLabel} limit`);
@@ -426,7 +391,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
     }
     if (context.dom.pasteConfirmPreview) {
       context.dom.pasteConfirmPreview.innerHTML = "";
-      if (firstFile && isImageMime(firstFile.type)) {
+      if (firstFile.type.startsWith("image/")) {
         pastedPreviewUrl = URL.createObjectURL(firstFile);
         const img = document.createElement("img");
         img.src = pastedPreviewUrl;
@@ -474,7 +439,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       setFileDropOverlayVisible(false);
       const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.size > 0);
       if (!files.length) return;
-      void handleFileUploads(files);
+      handleFileUploads(files);
     });
   };
 
@@ -506,14 +471,14 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       const files = Array.from(context.dom.filePickerInput?.files ?? []);
       if (!files.length) return;
       if (context.dom.filePickerInput) context.dom.filePickerInput.value = "";
-      void handleFileUploads(files);
+      handleFileUploads(files);
     });
     context.dom.pasteConfirmBackdrop?.addEventListener("click", closePasteConfirm);
     context.dom.pasteConfirmCancelBtn?.addEventListener("click", closePasteConfirm);
     context.dom.pasteConfirmSendBtn?.addEventListener("click", () => {
       const files = pastedFiles;
       closePasteConfirm();
-      void handleFileUploads(files);
+      handleFileUploads(files);
     });
     bindFileDrop();
 
@@ -542,7 +507,7 @@ export function createOutbox(context: RoomPageContext, deps: OutboxDeps) {
       temp.querySelector(".pending-retry-btn")?.remove();
       delete temp.dataset.tempId;
     }
-    context.state.pendingOutgoingMessages.delete(tempId);
+    pendingOutgoingMessages.delete(tempId);
   };
 
   return {

@@ -16,15 +16,15 @@ function decodeXmlEntities(value: string): string {
     .replaceAll("&apos;", "'");
 }
 
-export function buildR2S3ObjectUrl(env: Pick<Env, "R2_ACCOUNT_ID" | "R2_BUCKET_NAME">, objectKey: string): string {
+function buildR2S3ObjectUrl(env: Pick<Env, "R2_ACCOUNT_ID" | "R2_BUCKET_NAME">, objectKey: string): string {
   return `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/${encodeObjectKey(objectKey)}`;
 }
 
-export function buildR2S3BucketUrl(env: Pick<Env, "R2_ACCOUNT_ID" | "R2_BUCKET_NAME">): string {
+function buildR2S3BucketUrl(env: Pick<Env, "R2_ACCOUNT_ID" | "R2_BUCKET_NAME">): string {
   return `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}`;
 }
 
-export function createR2S3Client(env: Pick<Env, "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY">): AwsClient {
+function createR2S3Client(env: Pick<Env, "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY">): AwsClient {
   return new AwsClient({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,

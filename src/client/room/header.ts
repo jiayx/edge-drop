@@ -1,9 +1,9 @@
-import { applyThemePreference, getAppliedTheme, getStoredThemePreference } from "@/client/theme";
+import { applyThemePreference, getAppliedTheme, getStoredThemePreference, type ThemePreference } from "@/client/theme";
 import { MAX_ROOM_DURATION_HOURS } from "@/lib/expiry";
 import { buttonIcon } from "@/lib/icons";
 
-import type { RoomPageContext, ThemeMode, ThemePreference } from "./state";
-import { flash } from "./utils";
+import type { RoomPageContext } from "./state";
+import { flash } from "@/client/utils";
 
 function buildShareUrls(roomKey: string): { roomUrl: string; qrUrl: string } {
   const roomUrl = new URL(`/room/${roomKey}`, window.location.origin).toString();
@@ -138,7 +138,7 @@ function setThemePreference(context: RoomPageContext, preference: ThemePreferenc
   syncTheme(context);
 }
 
-export function cycleThemePreference(context: RoomPageContext): ThemePreference {
+function cycleThemePreference(context: RoomPageContext): ThemePreference {
   const nextTheme = getNextThemePreference(getStoredThemePreference());
   setThemePreference(context, nextTheme);
   return nextTheme;
@@ -158,7 +158,7 @@ function syncTheme(context: RoomPageContext): void {
   }`);
 }
 
-export function syncMessageInputPlaceholder(context: RoomPageContext): void {
+function syncMessageInputPlaceholder(context: RoomPageContext): void {
   if (!context.dom.messageInput) return;
   context.dom.messageInput.placeholder = context.dom.mobileViewport.matches
     ? "Type a message..."
@@ -186,16 +186,10 @@ function startCountdown(context: RoomPageContext): void {
   context.state.countdownInterval = setInterval(() => updateCountdown(context), 10_000);
 }
 
-export interface RoomHeaderController {
-  cycleThemePreference: () => ThemePreference;
-  getAppliedTheme: (preference: ThemePreference) => ThemeMode;
-  setExpiresAt: (expiresAt: number) => void;
-}
-
 export function createRoomHeaderController(
   context: RoomPageContext,
   deps: { appendLocalSystemNotice: (text: string) => void }
-): RoomHeaderController {
+) {
   const setExpiresAt = (expiresAt: number): void => {
     context.state.expiresAt = expiresAt;
     startCountdown(context);
@@ -232,8 +226,8 @@ export function createRoomHeaderController(
 
   return {
     cycleThemePreference: () => cycleThemePreference(context),
-    getAppliedTheme: (preference) =>
-      getAppliedTheme(context.dom.themeViewport, preference) as ThemeMode,
+    getAppliedTheme: (preference: ThemePreference) =>
+      getAppliedTheme(context.dom.themeViewport, preference),
     setExpiresAt,
   };
 }

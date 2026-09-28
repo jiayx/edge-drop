@@ -1,4 +1,5 @@
-// Admin dashboard client-side logic
+import type { UserRecord } from "@/room/types";
+import { escHtml } from "@/client/utils";
 
 interface StatsData {
   totalRooms: number;
@@ -15,13 +16,6 @@ interface RoomEntry {
   onlineCount: number;
 }
 
-interface UserRecord {
-  userId: string;
-  displayName: string;
-  joinedAt: number;
-  lastSeenAt: number;
-}
-
 interface RoomDetail {
   key: string;
   doId: string;
@@ -35,83 +29,50 @@ interface RoomDetail {
 }
 
 let currentToken = "";
-let currentStats: StatsData | null = null;
 let roomsList: RoomEntry[] = [];
 let currentRoomDetail: RoomDetail | null = null;
 const adminRoot = document.getElementById("admin-page");
 
-function byId(id: string): HTMLElement | null {
-  return document.getElementById(id);
-}
-
-function asDiv(el: HTMLElement | null): HTMLDivElement | null {
-  return el instanceof HTMLDivElement ? el : null;
-}
-
-function asInput(el: HTMLElement | null): HTMLInputElement | null {
-  return el instanceof HTMLInputElement ? el : null;
-}
-
-function asButton(el: HTMLElement | null): HTMLButtonElement | null {
-  return el instanceof HTMLButtonElement ? el : null;
-}
-
-function asSpan(el: HTMLElement | null): HTMLSpanElement | null {
-  return el instanceof HTMLSpanElement ? el : null;
-}
-
-function asSelect(el: HTMLElement | null): HTMLSelectElement | null {
-  return el instanceof HTMLSelectElement ? el : null;
-}
-
-function asTBody(el: HTMLElement | null): HTMLTableSectionElement | null {
-  return el instanceof HTMLTableSectionElement ? el : null;
-}
-
 // DOM Elements
-const authSection = asDiv(byId("auth-section"));
-const dashboardShell = asDiv(byId("dashboard-shell"));
-const dashboardContent = asDiv(byId("dashboard-content"));
-const tokenInput = asInput(byId("auth-token-input"));
-const authSubmitBtn = asButton(byId("auth-submit-btn"));
-const authError = asDiv(byId("auth-error"));
-const refreshBtn = asButton(byId("refresh-btn"));
-const logoutBtn = asButton(byId("logout-btn"));
-const themeToggleBtn = asButton(byId("theme-toggle-btn"));
+const authSection = document.querySelector<HTMLDivElement>("#auth-section");
+const dashboardShell = document.querySelector<HTMLDivElement>("#dashboard-shell");
+const tokenInput = document.querySelector<HTMLInputElement>("#auth-token-input");
+const authSubmitBtn = document.querySelector<HTMLButtonElement>("#auth-submit-btn");
+const authError = document.querySelector<HTMLDivElement>("#auth-error");
+const refreshBtn = document.querySelector<HTMLButtonElement>("#refresh-btn");
+const logoutBtn = document.querySelector<HTMLButtonElement>("#logout-btn");
+const themeToggleBtn = document.querySelector<HTMLButtonElement>("#theme-toggle-btn");
 
 // Stats elements
-const statTotalRooms = asDiv(byId("stat-total-rooms"));
-const statActiveRooms = asDiv(byId("stat-active-rooms"));
-const statExpiredRooms = asDiv(byId("stat-expired-rooms"));
-const serverTimeEl = asSpan(byId("server-time"));
-const lastUpdatedEl = asSpan(byId("last-updated"));
+const statTotalRooms = document.querySelector<HTMLDivElement>("#stat-total-rooms");
+const statActiveRooms = document.querySelector<HTMLDivElement>("#stat-active-rooms");
+const statExpiredRooms = document.querySelector<HTMLDivElement>("#stat-expired-rooms");
+const serverTimeEl = document.querySelector<HTMLSpanElement>("#server-time");
+const lastUpdatedEl = document.querySelector<HTMLSpanElement>("#last-updated");
 
 // Navigation
 const navItems = document.querySelectorAll<HTMLElement>(".admin-nav-item");
 const sections = document.querySelectorAll<HTMLElement>(".admin-section");
 
 // Rooms section
-const roomFilter = asSelect(byId("room-filter"));
-const roomSearch = asInput(byId("room-search"));
-const roomsTbody = asTBody(byId("rooms-tbody"));
+const roomFilter = document.getElementById("room-filter") as HTMLSelectElement | null;
+const roomSearch = document.querySelector<HTMLInputElement>("#room-search");
+const roomsTbody = document.querySelector<HTMLTableSectionElement>("#rooms-tbody");
 
 // Room detail drawer
-const roomDetailDrawer = asDiv(byId("room-detail-drawer"));
-const drawerBackdrop = asDiv(byId("drawer-backdrop"));
-const drawerClose = asButton(byId("drawer-close"));
-const detailRoomKey = byId("detail-room-key");
-const detailRoomStatus = byId("detail-room-status");
-const detailCreatedAt = byId("detail-created-at");
-const detailExpiresAt = byId("detail-expires-at");
-const detailOnlineCount = byId("detail-online-count");
-const detailUsersList = asDiv(byId("detail-users-list"));
-const configMaxFileSize = asInput(byId("config-max-file-size"));
-const configSaveBtn = asButton(byId("config-save-btn"));
-const configSaveError = asDiv(byId("config-save-error"));
+const roomDetailDrawer = document.querySelector<HTMLDivElement>("#room-detail-drawer");
+const drawerClose = document.querySelector<HTMLButtonElement>("#drawer-close");
+const detailRoomKey = document.getElementById("detail-room-key");
+const detailRoomStatus = document.getElementById("detail-room-status");
+const detailCreatedAt = document.getElementById("detail-created-at");
+const detailExpiresAt = document.getElementById("detail-expires-at");
+const detailOnlineCount = document.getElementById("detail-online-count");
+const detailUsersList = document.querySelector<HTMLDivElement>("#detail-users-list");
+const configMaxFileSize = document.querySelector<HTMLInputElement>("#config-max-file-size");
+const configSaveBtn = document.querySelector<HTMLButtonElement>("#config-save-btn");
+const configSaveError = document.querySelector<HTMLDivElement>("#config-save-error");
 
 function init(): void {
-  if (!adminRoot) return;
-
   // Check for stored token
   const storedToken = sessionStorage.getItem("admin_token");
   if (storedToken) {
@@ -176,7 +137,7 @@ async function handleAuth(): Promise<void> {
       currentToken = token;
       sessionStorage.setItem("admin_token", token);
       showDashboard();
-      await loadStats();
+      updateStatsDisplay(await response.json() as StatsData);
       await loadRooms();
     } else {
       if (authError) authError.style.display = "block";
@@ -192,7 +153,6 @@ async function handleAuth(): Promise<void> {
 function showDashboard(): void {
   if (authSection) authSection.style.display = "none";
   if (dashboardShell) dashboardShell.style.display = "grid";
-  if (dashboardContent) dashboardContent.style.display = "block";
 }
 
 function showSection(sectionId: string): void {
@@ -227,7 +187,6 @@ async function loadStats(): Promise<void> {
 
     if (response.ok) {
       const data = await response.json() as StatsData;
-      currentStats = data;
       updateStatsDisplay(data);
     } else if (response.status === 401) {
       handleLogout();
@@ -250,23 +209,21 @@ async function loadRooms(): Promise<void> {
   if (!currentToken) return;
 
   try {
-    // Use the internal list endpoint
     const response = await fetch("/api/v1/admin/rooms", {
       headers: { "X-Admin-Token": currentToken },
     });
 
     if (response.ok) {
       const data = await response.json() as { rooms: RoomEntry[] };
-      roomsList = data.rooms || [];
+      roomsList = data.rooms;
       renderRoomsTable();
-    } else if (response.status === 404) {
-      // API not available, use stats only
-      roomsList = [];
-      renderRoomsTable();
+    } else if (response.status === 401) {
+      handleLogout();
+    } else {
+      throw new Error(`Failed to load rooms: ${response.status}`);
     }
   } catch (err) {
     console.error("Failed to load rooms:", err);
-    // Fallback: empty list
     roomsList = [];
     renderRoomsTable();
   }
@@ -311,7 +268,7 @@ function renderRoomsTable(): void {
           <td>${room.onlineCount}</td>
           <td>${expiresAt}</td>
           <td>
-            <button class="btn btn-secondary btn-details" data-room-key="${room.key}" style="font-size:0.75rem;padding:0.3rem 0.6rem">
+            <button class="btn btn-secondary" style="font-size:0.75rem;padding:0.3rem 0.6rem">
               Details
             </button>
           </td>
@@ -327,19 +284,10 @@ function renderRoomsTable(): void {
     });
 
     row.addEventListener("keydown", (event) => {
-      if (!(event instanceof KeyboardEvent)) return;
+      if (!(event instanceof KeyboardEvent) || event.target !== row) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       const key = row instanceof HTMLElement ? row.dataset.roomKey : undefined;
-      if (key) openRoomDetail(key);
-    });
-  });
-
-  // Attach event listeners to detail buttons
-  roomsTbody.querySelectorAll(".btn-details").forEach((btn) => {
-    btn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const key = btn instanceof HTMLElement ? btn.dataset.roomKey : undefined;
       if (key) openRoomDetail(key);
     });
   });
@@ -397,10 +345,10 @@ function renderRoomDetail(detail: RoomDetail): void {
         const initial = user.displayName.charAt(0).toUpperCase();
         return `
           <div class="user-item">
-            <div class="user-avatar" style="background:var(--accent-dim);color:var(--accent)">${initial}</div>
+            <div class="user-avatar" style="background:var(--accent-dim);color:var(--accent)">${escHtml(initial)}</div>
             <div class="user-info">
-              <div class="user-name">${user.displayName}</div>
-              <div class="user-meta">ID: ${user.userId.slice(0, 8)}...</div>
+              <div class="user-name">${escHtml(user.displayName)}</div>
+              <div class="user-meta">ID: ${escHtml(user.userId.slice(0, 8))}...</div>
             </div>
           </div>
         `;
@@ -466,7 +414,6 @@ function handleLogout(): void {
   sessionStorage.removeItem("admin_token");
   if (authSection) authSection.style.display = "flex";
   if (dashboardShell) dashboardShell.style.display = "none";
-  if (dashboardContent) dashboardContent.style.display = "block";
   if (tokenInput) tokenInput.value = "";
 }
 

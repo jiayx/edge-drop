@@ -4,6 +4,7 @@ export interface LayoutProps {
   title: string;
   description: string;
   children: unknown;
+  admin?: boolean;
 }
 
 export function Layout(props: LayoutProps) {
@@ -11,7 +12,7 @@ export function Layout(props: LayoutProps) {
     <html lang="en">
       <head>
         <meta charSet="UTF-8" />
-        {import.meta.env.PROD && (
+        {import.meta.env.PROD && !props.admin && (
           <>
             <script
               async
@@ -37,7 +38,9 @@ gtag('config', 'G-K8QNWFNXLL');`,
           href="https://icon.tools.tf/icon/64?type=tabler&fg=%23328ec8&bg=transparent&textGlyph=100&iconGlyph=100&radius=0&icon=transfer"
         />
         <ViteClient />
-        <Link href="/src/app.css" rel="stylesheet" />
+        {props.admin
+          ? <Link href="/src/admin.css" rel="stylesheet" />
+          : <Link href="/src/app.css" rel="stylesheet" />}
       </head>
       <body>{props.children}</body>
     </html>

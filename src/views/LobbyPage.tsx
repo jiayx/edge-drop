@@ -1,8 +1,4 @@
-export interface LobbyPageProps {
-  error?: "unavailable";
-}
-
-export function LobbyPage(props: LobbyPageProps) {
+export function LobbyPage() {
   return (
     <div id="lobby-page" class="lobby">
       <div class="lobby-card">
@@ -15,21 +11,16 @@ export function LobbyPage(props: LobbyPageProps) {
         </div>
 
         <div class="digit-row">
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 1" />
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 2" />
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 3" />
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 4" />
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 5" />
-          <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label="Digit 6" />
+          {Array.from({ length: 6 }, (_, index) => (
+            <input class="digit-input" type="tel" inputMode="numeric" maxLength={1} autoComplete="off" aria-label={`Digit ${index + 1}`} />
+          ))}
         </div>
 
         <div
           id="error-banner"
           class="error-banner"
           style="display:none"
-        >
-          {props.error ? "Room is not available." : ""}
-        </div>
+        />
 
         <div class="lobby-actions">
           <button id="join-btn" class="btn btn-primary">Join Room</button>

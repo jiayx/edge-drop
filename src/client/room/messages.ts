@@ -1,10 +1,10 @@
-import { formatFileSize } from "@/client/file";
+import { formatFileSize } from "@/lib/file";
 import { buttonIcon, fileIcon } from "@/lib/icons";
 import type { Message } from "@/room/types";
 
 import type { RoomPageContext } from "./state";
 import { renderMessageText } from "./text";
-import { escHtml } from "./utils";
+import { escHtml } from "@/client/utils";
 
 function fileUrl(roomKey: string, objectKey: string): string {
   return `/api/v1/rooms/${roomKey}/files/${encodeURIComponent(objectKey)}`;
@@ -77,14 +77,14 @@ async function copyMessageText(button: HTMLButtonElement): Promise<void> {
   setCopyButtonCopied(button);
 }
 
-export function isNearBottom(context: RoomPageContext, threshold = 80): boolean {
+function isNearBottom(context: RoomPageContext, threshold = 80): boolean {
   const { messageList } = context.dom;
   if (!messageList) return true;
   const distance = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight;
   return distance <= threshold;
 }
 
-export function scheduleBottomCorrection(context: RoomPageContext, passes = 1, force = false): void {
+function scheduleBottomCorrection(context: RoomPageContext, passes = 1, force = false): void {
   const { messageList } = context.dom;
   const { state } = context;
   if (!messageList || (!state.stickToBottom && !force)) {
@@ -204,47 +204,39 @@ export function buildMessageEl(context: RoomPageContext, msg: Message): HTMLElem
   if (msg.type === "text") {
     contentHtml = `<p class="bubble-text">${renderMessageText(context, msg.content, msg.senderId)}</p>`;
     messageCopyText.set(el, msg.content);
-  } else if (msg.type === "image") {
-    const url = fileUrl(context.roomKey, msg.content);
-    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
-    contentHtml = `<div class="bubble-image">
-      <a href="${url}" target="_blank"><img class="bubble-img" src="${url}" alt="${escHtml(msg.fileName ?? "image")}" loading="lazy"></a>
-      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "image")}">
-        ${fileIcon("download")}
-        <span class="file-name">${escHtml(msg.fileName ?? "image")}</span>
-        <span class="file-size">${size}</span>
-      </a>
-    </div>`;
-  } else if (msg.type === "audio") {
-    const url = fileUrl(context.roomKey, msg.content);
-    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
-    contentHtml = `<div class="bubble-audio-wrap">
-      <audio class="bubble-audio" controls preload="none" src="${url}" style="width:100%;max-width:320px"></audio>
-      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "audio")}">
-        ${fileIcon("download")}
-        <span class="file-name">${escHtml(msg.fileName ?? "audio")}</span>
-        <span class="file-size">${size}</span>
-      </a>
-    </div>`;
-  } else if (msg.type === "video") {
-    const url = fileUrl(context.roomKey, msg.content);
-    const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
-    contentHtml = `<div class="bubble-video">
-      <video class="bubble-video-player" src="${url}" controls preload="metadata"></video>
-      <a class="bubble-video-download" href="${url}" download="${escHtml(msg.fileName ?? "video")}">
-        ${fileIcon("download")}
-        <span class="file-name">${escHtml(msg.fileName ?? "video")}</span>
-        <span class="file-size">${size}</span>
-      </a>
-    </div>`;
   } else {
     const url = fileUrl(context.roomKey, msg.content);
+    const fileName = escHtml(msg.fileName ?? msg.type);
     const size = msg.fileSizeBytes != null ? ` (${formatFileSize(msg.fileSizeBytes)})` : "";
-    contentHtml = `<a class="bubble-file" href="${url}" download="${escHtml(msg.fileName ?? "file")}">
-      ${fileIcon("paperclip")}
-      <span class="file-name">${escHtml(msg.fileName ?? "file")}</span>
+    const isMedia = msg.type === "image" || msg.type === "audio" || msg.type === "video";
+    const downloadLink = `<a class="${isMedia ? "bubble-video-download" : "bubble-file"}" href="${url}" download="${fileName}">
+      ${fileIcon(isMedia ? "download" : "paperclip")}
+      <span class="file-name">${fileName}</span>
       <span class="file-size">${size}</span>
     </a>`;
+
+    switch (msg.type) {
+      case "image":
+        contentHtml = `<div class="bubble-image">
+          <a href="${url}" target="_blank"><img class="bubble-img" src="${url}" alt="${fileName}" loading="lazy"></a>
+          ${downloadLink}
+        </div>`;
+        break;
+      case "audio":
+        contentHtml = `<div class="bubble-audio-wrap">
+          <audio class="bubble-audio" controls preload="none" src="${url}" style="width:100%;max-width:320px"></audio>
+          ${downloadLink}
+        </div>`;
+        break;
+      case "video":
+        contentHtml = `<div class="bubble-video">
+          <video class="bubble-video-player" src="${url}" controls preload="metadata"></video>
+          ${downloadLink}
+        </div>`;
+        break;
+      default:
+        contentHtml = downloadLink;
+    }
   }
 
   el.innerHTML = `

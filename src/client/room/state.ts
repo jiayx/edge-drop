@@ -6,8 +6,6 @@ import type { RoomWebSocket } from "./ws";
 
 export type SendableClientMessage = Extract<ClientMessage, { type: "msg:text" | "msg:file" }>;
 export type LocalOutgoingStatus = "uploading" | "upload-failed" | "pending";
-export type ThemeMode = "light" | "dark";
-export type ThemePreference = "system" | ThemeMode;
 
 export interface PendingOutgoingMessage {
   tempId: string;
@@ -26,7 +24,7 @@ export interface JoinResponse {
   roomKey: string;
   expiresAt: number;
   onlineCount: number;
-  onlineUsers: import("@/room/types").UserRecord[];
+  onlineUsers: UserRecord[];
   messages: Message[];
   hasMoreMessages: boolean;
   nextSeq: number;
@@ -46,7 +44,6 @@ export interface RoomPageState {
   bottomCorrectionPasses: number;
   bottomCorrectionForced: boolean;
   isWsConnected: boolean;
-  pendingOutgoingMessages: Map<string, PendingOutgoingMessage>;
   onlineUsers: UserRecord[];
   knownUsers: Map<string, UserRecord>;
 }
@@ -75,7 +72,6 @@ export function createRoomPageState(): RoomPageState {
     bottomCorrectionPasses: 0,
     bottomCorrectionForced: false,
     isWsConnected: false,
-    pendingOutgoingMessages: new Map<string, PendingOutgoingMessage>(),
     onlineUsers: [],
     knownUsers: new Map<string, UserRecord>(),
   };

@@ -1,4 +1,3 @@
-export {};
 import { applyThemePreference } from "@/client/theme";
 
 const lobbyRoot = document.getElementById("lobby-page");
@@ -7,10 +6,6 @@ if (lobbyRoot) {
   interface CreateRoomResponse {
     roomKey: string;
     expiresAt: number;
-  }
-
-  function roomUrl(roomKey: string): string {
-    return `/room/${roomKey}`;
   }
 
   const digitInputs = Array.from(
@@ -51,8 +46,7 @@ if (lobbyRoot) {
 
     input.addEventListener("paste", (e: ClipboardEvent) => {
       e.preventDefault();
-      const clipData = e.clipboardData ?? (window as Window & { clipboardData?: DataTransfer }).clipboardData;
-      const text = (clipData?.getData("text") ?? "").replace(/\D/g, "");
+      const text = (e.clipboardData?.getData("text") ?? "").replace(/\D/g, "");
       [...text].slice(0, 6).forEach((ch, j) => {
         const target = digitInputs[j];
         if (target) target.value = ch;
@@ -79,7 +73,7 @@ if (lobbyRoot) {
         const res = await fetch("/api/v1/rooms", { method: "POST" });
         if (!res.ok) throw new Error("Failed to create room");
         const { roomKey } = await res.json() as CreateRoomResponse;
-        window.location.assign(roomUrl(roomKey));
+        window.location.assign(`/room/${roomKey}`);
       } catch (err) {
         showError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -98,7 +92,7 @@ if (lobbyRoot) {
       const res = await fetch(`/api/v1/rooms/${key}`);
       if (res.status === 404) throw new Error("Room is not available.");
       if (!res.ok) throw new Error("Failed to join room");
-      window.location.assign(roomUrl(key));
+      window.location.assign(`/room/${key}`);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Unknown error");
     } finally {

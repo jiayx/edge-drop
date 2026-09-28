@@ -6,10 +6,6 @@ import { getDefaultMaxFileSizeMb } from "@/lib/fileSize";
 import type { RoomIndexEntry } from "@/room/types";
 import { getRoomIndexStub, getRoomStub, lookupRoom } from "@/room/store";
 
-function param(c: Context<{ Bindings: Env }>, name: string): string {
-  return c.req.param(name) ?? "";
-}
-
 function roomUnavailable(c: Context<{ Bindings: Env }>): Response {
   return c.json({ error: "Room not available" }, 404);
 }
@@ -64,7 +60,7 @@ export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Respons
 // GET /api/v1/rooms/:key — get room info
 export async function getRoomInfo(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
+  const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
   const rateLimited = await enforceRoomProbeRateLimit(c);
@@ -86,7 +82,7 @@ export async function getRoomInfo(c: Context<{ Bindings: Env }>): Promise<Respon
 // POST /api/v1/rooms/:key/join — join a room
 export async function joinRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
+  const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
   const rateLimited = await enforceRoomProbeRateLimit(c);
@@ -121,7 +117,7 @@ export async function joinRoom(c: Context<{ Bindings: Env }>): Promise<Response>
 // POST /api/v1/rooms/:key/extend — extend room TTL
 export async function extendRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
+  const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 
@@ -153,7 +149,7 @@ export async function extendRoom(c: Context<{ Bindings: Env }>): Promise<Respons
 // GET /api/v1/rooms/:key/messages — paginated message history
 export async function getRoomMessages(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
+  const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 

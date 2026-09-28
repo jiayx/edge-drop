@@ -1,6 +1,6 @@
 import { isMentionBoundaryChar, isMentionPrefixChar } from "./mentionRules";
 import type { RoomPageContext } from "./state";
-import { escHtml } from "./utils";
+import { escHtml } from "@/client/utils";
 
 function createMentionMarkup(displayName: string, isOwn: boolean): string {
   const className = isOwn ? "bubble-mention own" : "bubble-mention";

@@ -1,22 +1,21 @@
 import { Context, Hono } from "hono";
 import { Script } from "vite-ssr-components/hono";
 import { Layout } from "@/views/Layout";
-import { AdminLayout } from "@/views/AdminLayout";
 import { LobbyPage } from "@/views/LobbyPage";
 import { RoomPage } from "@/views/RoomPage";
 import { AdminPage } from "@/views/AdminPage";
 import { getDefaultMaxFileSizeMb, parsePositiveInt } from "@/lib/fileSize";
 import { getRoomStub, lookupRoom } from "@/room/store";
 import { isExpired } from "@/lib/expiry";
+import { isValidRoomKey } from "@/lib/roomKey";
 
 export function renderLobby(c: Context<{ Bindings: Env }>): Response | Promise<Response> {
-  const error = c.req.query("error");
-  return c.html(<LobbyDocument error={error === "unavailable" ? error : undefined} />);
+  return c.html(<LobbyDocument />);
 }
 
 export async function renderRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const roomKey = c.req.param("key");
-  if (!roomKey || !/^\d{6}$/.test(roomKey)) {
+  if (!roomKey || !isValidRoomKey(roomKey)) {
     return c.redirect("/?error=unavailable");
   }
 
@@ -39,14 +38,14 @@ export async function renderRoom(c: Context<{ Bindings: Env }>): Promise<Respons
   return c.html(<RoomDocument roomKey={roomKey} maxFileSizeMb={maxFileSizeMb} />);
 }
 
-function LobbyDocument(props: { error?: "unavailable" }) {
+function LobbyDocument() {
   return (
     <Layout
       title="Edge Drop"
       description="Edge Drop is a temporary room for fast file sharing and simple chat. No registration required."
     >
       <div id="app">
-        <LobbyPage error={props.error} />
+        <LobbyPage />
       </div>
       <Script src="/src/client/lobby.ts" />
     </Layout>
@@ -69,7 +68,8 @@ function RoomDocument(props: { roomKey: string; maxFileSizeMb: number }) {
 
 function AdminDocument() {
   return (
-    <AdminLayout
+    <Layout
+      admin
       title="Admin Dashboard — Edge Drop"
       description="Edge Drop admin dashboard for managing rooms and monitoring system status."
     >
@@ -77,7 +77,7 @@ function AdminDocument() {
         <AdminPage />
       </div>
       <Script src="/src/client/admin.ts" />
-    </AdminLayout>
+    </Layout>
   );
 }
 

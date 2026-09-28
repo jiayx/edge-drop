@@ -1,144 +1,98 @@
 # edge-drop
 
-Anonymous temporary room chat and file drop built with Vite, Cloudflare Workers, Durable Objects, and R2.
+Temporary, anonymous chat rooms and file sharing built with TypeScript, Hono,
+Vite, Cloudflare Workers, Durable Objects, and R2.
 
 ## Features
 
-- 6-digit temporary rooms
-- Real-time room presence and chat over WebSocket
-- File upload and download through the Worker
-- Image, audio, and video previews
-- Room expiry and room extension
-- Desktop and mobile room presence UI
-- Dark, light, and system theme support
-- Local slash commands:
-  - `/name <new name>`
-  - `/theme`
-  - `/help`
+- Create or join a room with a 6-digit key; share its link or QR code.
+- Real-time chat, online users, renaming, mentions, and browser mention notifications.
+- Message history, automatic reconnection, pending-message retries, clickable links,
+  and message copying.
+- File picker, drag-and-drop, and paste uploads with progress, cancellation, and retry.
+- Image, audio, and video previews with download links.
+- Rooms expire after 24 hours by default. Extensions are capped at 48 hours from
+  the time of extension; an hourly job removes expired rooms and their files.
+- Light, dark, and system themes in the room; `/name <new name>`, `/theme`, and `/help` commands.
+- `/admin` provides room statistics, room details, online users, and per-room file size limits.
+- GA4 (`G-K8QNWFNXLL`) runs on the lobby and room pages in production builds.
 
-## Stack
+## Run locally
 
-- Vite
-- TypeScript
-- Hono
-- Cloudflare Workers
-- Durable Objects
-- R2
-
-## Project Structure
-
-- `src/views/*`: page HTML rendering
-- `src/client/*`: frontend behavior
-- `src/app.css`: app styles
-- `src/index.ts`: Worker entry
-- `src/routes/*`: HTTP and page routes
-- `src/room/durable/*`: room state Durable Objects
-
-## Requirements
-
-- Node.js 20+
-- pnpm
-- Wrangler 4
-- A Cloudflare account with:
-  - one R2 bucket
-  - Durable Objects enabled
-  - a Rate Limiting binding
-
-## Install
+Requires Node.js 20.19+ or 22.12+, pnpm, and a Cloudflare account with an R2 bucket,
+Durable Objects, and a Rate Limiting binding.
 
 ```bash
 pnpm install
-```
-
-## Local Development
-
-```bash
 pnpm dev
 ```
 
-The app runs on `http://localhost:5173`.
-
-## Build
+The development server runs at `http://localhost:5173`. Put local environment
+values in `.env`.
 
 ```bash
+pnpm exec tsc --noEmit
 pnpm build
+pnpm preview
 ```
 
+## Configuration
+
+[`wrangler.toml`](./wrangler.toml) defines the Worker, static assets, `ROOMS` and
+`ROOM_INDEX` Durable Objects, `ROOM_JOIN_RATE_LIMIT`, and the hourly cleanup schedule.
+
+| Variable | Purpose / default |
+| --- | --- |
+| `MAX_FILE_SIZE_MB` | Default per-file limit: `100` MB |
+| `ROOM_TTL_HOURS` | Initial lifetime and extension increment: `24` hours |
+| `BLOCKED_MIME_TYPES` | Comma-separated MIME prefixes blocked for uploads |
+| `ADMIN_AUTH_TOKEN` | Admin dashboard and API authentication |
+| `R2_ACCOUNT_ID` | Cloudflare account containing the bucket |
+| `R2_BUCKET_NAME` | File storage bucket |
+| `R2_ACCESS_KEY_ID` | R2 S3 access key |
+| `R2_SECRET_ACCESS_KEY` | R2 S3 secret key |
+
+The Worker issues presigned PUT URLs for browser uploads directly to R2.
+Downloads and media range requests stream through the Worker. Files use the
+`rooms/<roomKey>/` prefix; messages and room metadata live in Durable Objects.
+
+The R2 bucket must allow CORS from the site origin for `PUT` requests with
+`content-type`, `content-disposition`, and `x-amz-meta-originalfilename` headers.
+Uploads are checked against the room's file size limit, blocked MIME prefixes,
+and executable file extensions.
+
+Admin API requests use `X-Admin-Token`. The dashboard stores the token in browser
+session storage. Available endpoints include `/api/v1/admin/stats`,
+`/api/v1/admin/rooms`, `/api/v1/admin/rooms/:key`, and
+`POST /api/v1/admin/rooms/:key/config`.
+
 ## Deploy
+
+Set the five admin/R2 variables above in `.env.prod`, and configure the rate limit
+namespace in `wrangler.toml`.
 
 ```bash
 pnpm run deploy
 ```
 
-The deploy script reads `.env.prod` by default. Values in `.env.prod` override
-`[vars]` in [`wrangler.toml`](./wrangler.toml).
-
-You can also override the env file:
-
-```bash
-pnpm run deploy -- .env.staging
-```
-
-To bypass the sync step and run Wrangler directly:
+This builds the app, merges `.env.prod` values into the generated Wrangler config,
+and deploys the Worker. Environment file values override `wrangler.toml` defaults.
+To use another environment file:
 
 ```bash
-pnpm run deploy:raw
+pnpm run deploy .env.staging
 ```
 
-## Configuration
+`pnpm run deploy:raw` runs Wrangler directly without the build or environment-file merge.
+Environment files are gitignored.
 
-Main config lives in [`wrangler.toml`](./wrangler.toml).
+## Source layout
 
-Current bindings and vars:
-
-- Durable Objects: `ROOMS`, `ROOM_INDEX`
-- Rate limit: `ROOM_JOIN_RATE_LIMIT`
-- Default vars in `wrangler.toml`: `MAX_FILE_SIZE_MB`, `ROOM_TTL_HOURS`, `BLOCKED_MIME_TYPES`
-- Required deploy vars from `.env.prod` unless you also hardcode them into `wrangler.toml`:
-  `ADMIN_AUTH_TOKEN`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`,
-  `R2_SECRET_ACCESS_KEY`
-
-You should update at least:
-
-- rate limit namespace
-- `ADMIN_AUTH_TOKEN`
-- `R2_ACCOUNT_ID`
-- `R2_BUCKET_NAME`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-
-## Stats Endpoint
-
-Internal stats endpoint:
-
-```text
-GET /api/v1/admin/stats
-X-Admin-Token: <token>
-```
-
-Example:
-
-```bash
-curl -s http://127.0.0.1:5173/api/v1/admin/stats \
-  -H 'X-Admin-Token: your_token'
-```
-
-## Room Flow
-
-1. Create a room with `POST /api/v1/rooms`
-2. Open `/room/<roomKey>`
-3. Join via `POST /api/v1/rooms/:key/join`
-4. Chat and upload files
-5. Extend room lifetime with `POST /api/v1/rooms/:key/extend`
-
-## Notes
-
-- Files are stored in R2 under `rooms/<roomKey>/...`
-- Uploads are direct-to-R2 via presigned PUT URLs generated by the Worker
-- Downloads are proxied by the Worker through the R2 S3 API instead of exposing R2 directly
-- Room metadata and presence are stored in Durable Objects
-- Expired rooms are cleaned up by the scheduled cleanup job through the R2 S3 API
-- Your R2 bucket must allow browser CORS for direct uploads. At minimum, allow:
-  - origin: your site origin
-  - methods: `PUT`
-  - headers: `content-type`, `content-disposition`, `x-amz-meta-originalfilename`
+- `src/views`: server-rendered pages and shared layout
+- `src/client`: lobby, room, and admin browser behavior
+- `src/routes`: page and API handlers
+- `src/room`: room types, lookup helpers, and Durable Objects
+- `src/lib`: shared helpers, icons, and R2 S3 operations
+- `src/cron`: expired-room cleanup
+- `src/app.css`, `src/admin.css`: public and admin styles
+- `scripts/deploy-worker.mjs`: build configuration merge and deployment

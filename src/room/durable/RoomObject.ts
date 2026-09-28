@@ -6,6 +6,7 @@ import type {
   ClientMessage,
   ServerMessage,
 } from "@/room/types";
+import { getFileMessageType } from "@/lib/file";
 import { logUnexpected } from "@/lib/errors";
 import { MAX_ROOM_DURATION_HOURS, roomTtlMs } from "@/lib/expiry";
 
@@ -15,17 +16,11 @@ function seqKey(seq: number): string {
   return `msg:${String(seq).padStart(MSG_KEY_PAD, "0")}`;
 }
 
-function newId(): string {
-  return crypto.randomUUID();
-}
-
 export class RoomObject {
   private state: DurableObjectState;
-  private env: Env;
 
-  constructor(state: DurableObjectState, env: Env) {
+  constructor(state: DurableObjectState) {
     this.state = state;
-    this.env = env;
     // Auto-respond to ping without waking the DO
     this.state.setWebSocketAutoResponse(
       new WebSocketRequestResponsePair("ping", "pong")
@@ -38,7 +33,7 @@ export class RoomObject {
 
     try {
       if (request.headers.get("Upgrade") === "websocket") {
-        return this.handleWebSocketUpgrade(request, url);
+        return this.handleWebSocketUpgrade(url);
       }
 
       switch (path) {
@@ -59,13 +54,13 @@ export class RoomObject {
 
   // ── WebSocket ─────────────────────────────────────────────────────────────
 
-  private async handleWebSocketUpgrade(request: Request, url: URL): Promise<Response> {
+  private async handleWebSocketUpgrade(url: URL): Promise<Response> {
     const meta = await this.state.storage.get<RoomMeta>("meta");
     if (!meta || Date.now() > meta.expiresAt) {
       return new Response("Room expired", { status: 410 });
     }
 
-    const userId = url.searchParams.get("userId") ?? newId();
+    const userId = url.searchParams.get("userId") ?? crypto.randomUUID();
     const fromSeq = parseInt(url.searchParams.get("fromSeq") ?? "0", 10);
     const hadOnlineUser = this.hasOnlineUser(userId);
 
@@ -75,11 +70,10 @@ export class RoomObject {
     this.state.acceptWebSocket(server, [userId]);
 
     // Update user presence
-    await this.upsertUser(userId, url.searchParams.get("displayName") ?? `User-${userId.slice(0, 4)}`);
+    const user = await this.upsertUser(userId, url.searchParams.get("displayName") ?? `User-${userId.slice(0, 4)}`);
 
     // Send missed messages + presence on connect
     const missedMessages = await this.loadMessages(fromSeq + 1, 100);
-    const allUsers = await this.getUsers();
     const onlineUsers = await this.getOnlineUsers();
     const onlineCount = onlineUsers.length;
 
@@ -98,8 +92,7 @@ export class RoomObject {
     server.send(JSON.stringify(presenceMsg));
 
     // Broadcast join to others
-    const user = allUsers[userId];
-    if (user && !hadOnlineUser) {
+    if (!hadOnlineUser) {
       const joinMsg: ServerMessage = {
         type: "user:join",
         userId,
@@ -149,16 +142,9 @@ export class RoomObject {
 
       case "msg:file": {
         const mimeType = parsed.mimeType ?? "";
-        const msgType: MessageType = mimeType.startsWith("image/")
-          ? "image"
-          : mimeType.startsWith("audio/")
-          ? "audio"
-          : mimeType.startsWith("video/")
-          ? "video"
-          : "file";
         await this.persistAndBroadcastMessage(
           userId,
-          msgType,
+          getFileMessageType(mimeType),
           parsed.objectKey,
           parsed.tempId,
           ws,
@@ -174,7 +160,7 @@ export class RoomObject {
           user.displayName = parsed.newName.slice(0, 32);
           await this.state.storage.put("users", users);
           const renameMsg: ServerMessage = { type: "user:rename", userId, newName: user.displayName };
-          this.broadcastAll(renameMsg);
+          this.broadcast(renameMsg);
         }
         break;
       }
@@ -220,7 +206,7 @@ export class RoomObject {
     this.broadcast(leaveMsg, ws);
   }
 
-  async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+  async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
     console.error("WebSocket error", error);
   }
 
@@ -262,7 +248,7 @@ export class RoomObject {
     await this.state.storage.put("meta", meta);
 
     const extendMsg: ServerMessage = { type: "room:extended", expiresAt: meta.expiresAt };
-    this.broadcastAll(extendMsg);
+    this.broadcast(extendMsg);
 
     return Response.json({ ok: true, expiresAt: meta.expiresAt });
   }
@@ -329,7 +315,7 @@ export class RoomObject {
 
     await this.state.storage.put("meta", meta);
     const configMsg: ServerMessage = { type: "room:config-updated", maxFileSizeMb: meta.maxFileSizeMb };
-    this.broadcastAll(configMsg);
+    this.broadcast(configMsg);
     return Response.json({ ok: true, maxFileSizeMb: meta.maxFileSizeMb });
   }
 
@@ -392,7 +378,7 @@ export class RoomObject {
 
     const count = ((await this.state.storage.get<number>("msg:count")) ?? 0) + 1;
     const msg: Message = {
-      id: newId(),
+      id: crypto.randomUUID(),
       seq: count,
       type,
       senderId: userId,
@@ -409,16 +395,16 @@ export class RoomObject {
     senderWs.send(JSON.stringify(ack));
 
     const broadcast: ServerMessage = {
-      type: type === "text" ? "msg:text" : type === "image" || type === "audio" ? "msg:file" : "msg:file",
+      type: type === "text" ? "msg:text" : "msg:file",
       message: msg,
     };
-    this.broadcastAll(broadcast);
+    this.broadcast(broadcast);
   }
 
   private async appendSystemMessage(content: string): Promise<void> {
     const count = ((await this.state.storage.get<number>("msg:count")) ?? 0) + 1;
     const msg: Message = {
-      id: newId(),
+      id: crypto.randomUUID(),
       seq: count,
       type: "system",
       senderId: "system",
@@ -430,7 +416,7 @@ export class RoomObject {
     await this.state.storage.put("msg:count", count);
 
     const broadcast: ServerMessage = { type: "msg:system", message: msg };
-    this.broadcastAll(broadcast);
+    this.broadcast(broadcast);
   }
 
   private async loadMessages(
@@ -504,9 +490,5 @@ export class RoomObject {
         try { ws.send(json); } catch { /* ignore disconnected */ }
       }
     }
-  }
-
-  private broadcastAll(msg: ServerMessage): void {
-    this.broadcast(msg, undefined);
   }
 }

@@ -1,5 +1,3 @@
-// upload.ts — file upload via Worker proxy with progress tracking
-
 export interface UploadResult {
   objectKey: string;
   fileName: string;
@@ -36,13 +34,8 @@ export async function uploadFile(opts: {
   });
 
   if (!metadataRes.ok) {
-    try {
-      const err = await metadataRes.json() as UploadErrorResponse;
-      throw new Error(err.error || `Upload failed with status ${metadataRes.status}`);
-    } catch (err) {
-      if (err instanceof Error) throw err;
-      throw new Error(`Upload failed with status ${metadataRes.status}`);
-    }
+    const error = await metadataRes.json().catch(() => null) as UploadErrorResponse | null;
+    throw new Error(error?.error || `Upload failed with status ${metadataRes.status}`);
   }
 
   const { objectKey, uploadUrl, uploadHeaders } = await metadataRes.json() as UploadResponse;

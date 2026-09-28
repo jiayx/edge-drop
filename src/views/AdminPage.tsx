@@ -1,10 +1,6 @@
-export interface AdminPageProps {
-  token?: string;
-}
-
-export function AdminPage(props: AdminPageProps) {
+export function AdminPage() {
   return (
-    <div id="admin-page" data-token={props.token ?? ""}>
+    <div id="admin-page">
       <div id="auth-section" class="admin-auth-section">
         <div class="admin-auth-card">
           <h2>Admin Authentication</h2>

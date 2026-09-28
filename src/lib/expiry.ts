@@ -7,7 +7,3 @@ export function roomTtlMs(hours: number): number {
 export function isExpired(expiresAt: number): boolean {
   return Date.now() > expiresAt;
 }
-
-export function minutesUntilExpiry(expiresAt: number): number {
-  return Math.max(0, Math.floor((expiresAt - Date.now()) / 60000));
-}

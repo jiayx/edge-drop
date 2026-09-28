@@ -2,7 +2,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { parsePositiveInt } from "@/lib/fileSize";
 import type { RoomIndexEntry } from "@/room/types";
-import { lookupRoom, getRoomStub } from "@/room/store";
+import { lookupRoom, getRoomStub, getRoomIndexStub } from "@/room/store";
 
 const requireAdminAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const authToken = c.req.header("X-Admin-Token");
@@ -15,7 +15,7 @@ const requireAdminAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) =
 // GET /api/v1/admin/stats — internal stats, auth-gated
 export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
+  const indexStub = getRoomIndexStub(env);
   const res = await indexStub.fetch("http://internal/list");
   const registry = await res.json<Record<string, RoomIndexEntry>>();
 
@@ -35,7 +35,7 @@ export async function getStats(c: Context<{ Bindings: Env }>): Promise<Response>
 export async function getAdminRooms(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
 
-  const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
+  const indexStub = getRoomIndexStub(env);
   const res = await indexStub.fetch("http://internal/list");
   const registry = await res.json<Record<string, RoomIndexEntry>>();
 

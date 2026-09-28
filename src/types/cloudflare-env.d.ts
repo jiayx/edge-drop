@@ -1,9 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
 
-declare module "assets:*" {
-  export const onRequest: unknown;
-}
-
 interface Env {
   ASSETS: Fetcher;
   ROOMS: DurableObjectNamespace;

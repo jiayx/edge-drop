@@ -2,7 +2,7 @@ import type { UserRecord } from "@/room/types";
 
 import { updateIdentityName } from "./identity";
 import type { RoomPageContext } from "./state";
-import { escHtml } from "./utils";
+import { escHtml } from "@/client/utils";
 
 function formatUserListName(context: RoomPageContext, userId: string, displayName: string): string {
   return `${displayName}${userId === context.identity.userId ? " (you)" : ""}`;
@@ -18,24 +18,16 @@ export function updatePresence(context: RoomPageContext, count: number, users: U
 
   if (onlineCountEl) onlineCountEl.textContent = String(count);
   if (mobileOnlineCountEl) mobileOnlineCountEl.textContent = String(count);
-  if (userListEl) {
-    userListEl.innerHTML = users
-      .map(
-        (u) => `<div class="user-item" data-user-id="${u.userId}">
-        <span class="user-avatar">${u.displayName.charAt(0).toUpperCase()}</span>
-        <span class="user-name">${escHtml(formatUserListName(context, u.userId, u.displayName))}</span>
-      </div>`
-      )
-      .join("");
-  }
-  if (mobileUserListEl) {
-    mobileUserListEl.innerHTML = users
-      .map(
-        (u) => `<div class="mobile-user-item" data-user-id="${u.userId}">
-        <span class="user-avatar">${u.displayName.charAt(0).toUpperCase()}</span>
-        <span class="user-name">${escHtml(formatUserListName(context, u.userId, u.displayName))}</span>
-      </div>`
-      )
+  for (const [list, className] of [
+    [userListEl, "user-item"],
+    [mobileUserListEl, "mobile-user-item"],
+  ] as const) {
+    if (!list) continue;
+    list.innerHTML = users
+      .map((user) => `<div class="${className}" data-user-id="${escHtml(user.userId)}">
+        <span class="user-avatar">${escHtml(user.displayName.charAt(0).toUpperCase())}</span>
+        <span class="user-name">${escHtml(formatUserListName(context, user.userId, user.displayName))}</span>
+      </div>`)
       .join("");
   }
 }

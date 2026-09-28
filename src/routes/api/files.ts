@@ -6,10 +6,6 @@ import { getDefaultMaxFileSizeMb, parsePositiveInt } from "@/lib/fileSize";
 import { createPresignedUpload, decodeOriginalFileName, deleteObjects, fetchObject } from "@/lib/r2";
 import { getRoomStub, lookupRoom } from "@/room/store";
 
-function param(c: Context<{ Bindings: Env }>, name: string): string {
-  return c.req.param(name) ?? "";
-}
-
 const BLOCKED_EXTENSIONS = new Set([".exe", ".bat", ".sh", ".cmd", ".msi", ".dll", ".scr", ".com", ".pif"]);
 const MAX_OBJECT_KEY_LEN = 512;
 const PRESIGNED_UPLOAD_TTL_SECONDS = 15 * 60;
@@ -58,7 +54,7 @@ function getContentDispositionMode(mimeType: string, fileName: string): "inline"
 // POST /api/v1/rooms/:key/files
 export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
+  const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 
@@ -127,8 +123,8 @@ export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise
 // GET /api/v1/rooms/:key/files/:objectKey — stream file from R2 through Worker
 export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
-  const rawObjectKey = param(c, "objectKey");
+  const key = c.req.param("key") ?? "";
+  const rawObjectKey = c.req.param("objectKey") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 
@@ -181,8 +177,8 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
 // DELETE /api/v1/rooms/:key/files/:objectKey
 export async function deleteFile(c: Context<{ Bindings: Env }>): Promise<Response> {
   const env = c.env;
-  const key = param(c, "key");
-  const objectKey = decodeURIComponent(param(c, "objectKey"));
+  const key = c.req.param("key") ?? "";
+  const objectKey = decodeURIComponent(c.req.param("objectKey") ?? "");
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 

@@ -2,7 +2,7 @@ import type { UserRecord } from "@/room/types";
 
 import { isMentionBoundaryChar, isMentionPrefixChar } from "./mentionRules";
 import type { RoomPageContext } from "./state";
-import { escHtml } from "./utils";
+import { escHtml } from "@/client/utils";
 
 interface MentionMatch {
   query: string;
@@ -51,11 +51,9 @@ function findActiveMention(value: string, caret: number): MentionMatch | null {
   if (atIndex < 0) return null;
 
   const absoluteAtIndex = lineStart + atIndex;
-  const prevChar = absoluteAtIndex > 0 ? value[absoluteAtIndex - 1] : "";
-  if (prevChar && !/\s|\(/.test(prevChar)) return null;
+  if (!isMentionPrefixChar(value[absoluteAtIndex - 1])) return null;
 
   const rawQuery = value.slice(absoluteAtIndex + 1, caret);
-  if (/[\n]/.test(rawQuery)) return null;
   if (/\s$/.test(rawQuery)) return null;
 
   return {
@@ -86,10 +84,6 @@ function setMentionMenuHidden(context: RoomPageContext): void {
   if (context.dom.mentionMenu) {
     context.dom.mentionMenu.innerHTML = "";
   }
-}
-
-function focusMessageInput(context: RoomPageContext): void {
-  context.dom.messageInput?.focus();
 }
 
 export function textMentionsDisplayName(text: string, displayName: string): boolean {
@@ -170,7 +164,7 @@ export function createMentionController(context: RoomPageContext) {
     input.setSelectionRange(nextCaret, nextCaret);
     suppressMenuUntilInput = true;
     closeMenu();
-    focusMessageInput(context);
+    input.focus();
   };
 
   const handleKeydown = (event: KeyboardEvent): boolean => {
@@ -242,7 +236,6 @@ export function createMentionController(context: RoomPageContext) {
 
   return {
     bind,
-    closeMenu,
     handleKeydown,
     syncMenu,
   };

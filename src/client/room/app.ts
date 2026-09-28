@@ -18,12 +18,6 @@ import { setupRename, updatePresence, updateRenderedUserName } from "./presence"
 import { createRoomPageState, type JoinResponse, type RoomPageContext } from "./state";
 import { RoomWebSocket } from "./ws";
 
-function lobbyUrl(params?: URLSearchParams | string): string {
-  if (!params) return "/";
-  const search = typeof params === "string" ? params : params.toString();
-  return search ? `/?${search}` : "/";
-}
-
 function syncLastSeq(context: RoomPageContext, seq: number): void {
   if (seq <= context.state.lastSeq) return;
   context.state.lastSeq = seq;
@@ -65,6 +59,15 @@ function showTopLoaderMessage(context: RoomPageContext, text: string, durationMs
   }, durationMs);
 }
 
+function prependHistory(context: RoomPageContext, messages: Message[], hasMore: boolean): void {
+  const unseen = messages.filter((message) => !document.querySelector(`[data-msg-id="${message.id}"]`));
+  if (unseen.length) {
+    prependMessages(context, unseen);
+    syncOldestSeq(context, unseen[0]?.seq ?? 0);
+  }
+  context.state.hasMore = hasMore;
+}
+
 async function loadMoreHistory(context: RoomPageContext): Promise<void> {
   if (context.state.loadingHistory) return;
   if (!context.state.hasMore) {
@@ -92,12 +95,7 @@ async function loadMoreHistory(context: RoomPageContext): Promise<void> {
         `/api/v1/rooms/${context.roomKey}/messages?beforeSeq=${context.state.oldestSeq}&limit=50`
       );
       const data = await res.json() as { messages: Message[]; hasMore: boolean; nextSeq: number };
-      const unseen = data.messages.filter((message) => !document.querySelector(`[data-msg-id="${message.id}"]`));
-      if (unseen.length) {
-        prependMessages(context, unseen);
-        syncOldestSeq(context, unseen[0]?.seq ?? 0);
-      }
-      context.state.hasMore = data.hasMore;
+      prependHistory(context, data.messages, data.hasMore);
       hasMore = data.hasMore;
     } finally {
       context.state.loadingHistory = false;
@@ -140,11 +138,11 @@ export async function bootstrapRoomPage(): Promise<void> {
   const notificationController = createRoomNotificationController(context);
   const outbox = createOutbox(context, {
     appendLocalSystemNotice,
-    cycleThemePreference: () => header.cycleThemePreference(),
-    getAppliedTheme: (preference) => header.getAppliedTheme(preference),
+    cycleThemePreference: header.cycleThemePreference,
+    getAppliedTheme: header.getAppliedTheme,
     applyRename,
-    handleMentionKeydown: (event) => mentionController.handleKeydown(event),
-    syncMentionMenu: () => mentionController.syncMenu(),
+    handleMentionKeydown: mentionController.handleKeydown,
+    syncMentionMenu: mentionController.syncMenu,
   });
   outbox.bindComposer();
   mentionController.bind();
@@ -207,18 +205,13 @@ export async function bootstrapRoomPage(): Promise<void> {
         appendSystemNotice(context, "Room has expired");
         context.state.ws?.close();
         setTimeout(() => {
-          window.location.replace(lobbyUrl("error=unavailable"));
+          window.location.replace("/?error=unavailable");
         }, 3000);
         break;
 
       case "history:response":
         if (context.state.loadingHistory) {
-          const unseen = msg.messages.filter((message) => !document.querySelector(`[data-msg-id="${message.id}"]`));
-          if (unseen.length) {
-            prependMessages(context, unseen);
-            syncOldestSeq(context, unseen[0]?.seq ?? 0);
-          }
-          context.state.hasMore = msg.hasMore;
+          prependHistory(context, msg.messages, msg.hasMore);
         }
         context.state.loadingHistory = false;
         if (msg.hasMore) {
@@ -276,14 +269,13 @@ export async function bootstrapRoomPage(): Promise<void> {
   });
 
   if (res.status === 404) {
-    window.location.replace(lobbyUrl("error=unavailable"));
+    window.location.replace("/?error=unavailable");
     return;
   }
 
   const data = await res.json() as JoinResponse;
   header.setExpiresAt(data.expiresAt);
   context.state.lastSeq = data.messages[data.messages.length - 1]?.seq ?? 0;
-  context.state.ws?.updateFromSeq(context.state.lastSeq);
   context.state.oldestSeq = data.messages[0]?.seq ?? 0;
   context.state.hasMore = data.hasMoreMessages;
   updatePresence(context, data.onlineCount, data.onlineUsers);

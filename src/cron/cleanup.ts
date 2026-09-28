@@ -1,3 +1,4 @@
+import { getRoomIndexStub, getRoomStub } from "@/room/store";
 import type { RoomIndexEntry } from "@/room/types";
 import { isExpired } from "@/lib/expiry";
 import { listRoomObjects, deleteObjects } from "@/lib/r2";
@@ -17,7 +18,7 @@ export async function handleScheduled(
   const stats: CleanupStats = { scanned: 0, cleaned: 0, filesDeleted: 0, errors: 0 };
 
   try {
-    const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
+    const indexStub = getRoomIndexStub(env);
     const res = await indexStub.fetch("http://internal/list");
     const registry = await res.json<Record<string, RoomIndexEntry>>();
 
@@ -49,7 +50,7 @@ async function cleanupRoom(
   stats: CleanupStats
 ): Promise<void> {
   try {
-    const roomStub = env.ROOMS.get(env.ROOMS.idFromString(entry.doId));
+    const roomStub = getRoomStub(env, entry.doId);
 
     // Mark DO as cleaning (409 means already in progress — skip)
     const expireRes = await roomStub.fetch("http://internal/expire", { method: "POST" });
@@ -67,7 +68,7 @@ async function cleanupRoom(
     await roomStub.fetch("http://internal/purge", { method: "POST" });
 
     // Remove from index
-    const indexStub = env.ROOM_INDEX.get(env.ROOM_INDEX.idFromName("global"));
+    const indexStub = getRoomIndexStub(env);
     await indexStub.fetch(`http://internal/deregister/${roomKey}`, { method: "DELETE" });
 
     stats.cleaned++;
