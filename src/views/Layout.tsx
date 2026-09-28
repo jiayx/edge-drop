@@ -11,6 +11,22 @@ export function Layout(props: LayoutProps) {
     <html lang="en">
       <head>
         <meta charSet="UTF-8" />
+        {import.meta.env.PROD && (
+          <>
+            <script
+              async
+              src="https://www.googletagmanager.com/gtag/js?id=G-K8QNWFNXLL"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-K8QNWFNXLL');`,
+              }}
+            />
+          </>
+        )}
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{props.title}</title>
         <meta name="description" content={props.description} />
