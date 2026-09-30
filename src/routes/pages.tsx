@@ -1,3 +1,4 @@
+import { enforceRoomProbeRateLimit } from "@/lib/roomProbeRateLimit";
 import { Context, Hono } from "hono";
 import { Script } from "vite-ssr-components/hono";
 import { Layout } from "@/views/Layout";
@@ -18,6 +19,9 @@ export async function renderRoom(c: Context<{ Bindings: Env }>): Promise<Respons
   if (!roomKey || !isValidRoomKey(roomKey)) {
     return c.redirect("/?error=unavailable");
   }
+
+  const rateLimited = await enforceRoomProbeRateLimit(c, roomKey, true);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(c.env, roomKey);
   if (!entry) {

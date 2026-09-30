@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { generateRoomKey, isValidRoomKey } from "@/lib/roomKey";
 import { roomTtlMs, isExpired } from "@/lib/expiry";
 import { getDefaultMaxFileSizeMb } from "@/lib/fileSize";
+import { enforceRoomProbeRateLimit } from "@/lib/roomProbeRateLimit";
 import type { RoomIndexEntry } from "@/room/types";
 import { getRoomIndexStub, getRoomStub, lookupRoom } from "@/room/store";
 
@@ -10,15 +11,14 @@ function roomUnavailable(c: Context<{ Bindings: Env }>): Response {
   return c.json({ error: "Room not available" }, 404);
 }
 
-async function enforceRoomProbeRateLimit(c: Context<{ Bindings: Env }>): Promise<Response | null> {
-  const rateLimitKey = c.req.raw.headers.get("CF-Connecting-IP") ?? "global";
-  const { success } = await c.env.ROOM_JOIN_RATE_LIMIT.limit({ key: rateLimitKey });
-  if (success) return null;
-  return c.json({ error: "Too many requests, please slow down" }, 429);
-}
-
 // POST /api/v1/rooms — create a new room
 export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const { success } = await c.env.ROOM_JOIN_RATE_LIMIT.limit({
+    key: `create:${c.req.header("CF-Connecting-IP") || "global"}`,
+  });
+  if (!success) {
+    return c.json({ error: "Too many requests, please try again in a minute" }, 429, { "Retry-After": "60" });
+  }
   const env = c.env;
   const ttlHours = parseInt(env.ROOM_TTL_HOURS, 10);
   const expiresAt = Date.now() + roomTtlMs(ttlHours);
@@ -34,6 +34,11 @@ export async function createRoom(c: Context<{ Bindings: Env }>): Promise<Respons
     attempts++;
     if (attempts > 10) return c.json({ error: "Failed to generate unique key" }, 500);
   } while (existing && !isExpired(existing.expiresAt));
+
+  // Admit the generated code before creating anything, so the redirect cannot
+  // strand a freshly created room behind an exhausted discovery budget.
+  const rateLimited = await enforceRoomProbeRateLimit(c, roomKey);
+  if (rateLimited) return rateLimited;
 
   // Create the Durable Object
   const doId = env.ROOMS.newUniqueId();
@@ -63,7 +68,7 @@ export async function getRoomInfo(c: Context<{ Bindings: Env }>): Promise<Respon
   const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
-  const rateLimited = await enforceRoomProbeRateLimit(c);
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
   if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
@@ -85,7 +90,7 @@ export async function joinRoom(c: Context<{ Bindings: Env }>): Promise<Response>
   const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
-  const rateLimited = await enforceRoomProbeRateLimit(c);
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
   if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
@@ -120,6 +125,8 @@ export async function extendRoom(c: Context<{ Bindings: Env }>): Promise<Respons
   const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);
@@ -152,6 +159,8 @@ export async function getRoomMessages(c: Context<{ Bindings: Env }>): Promise<Re
   const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);

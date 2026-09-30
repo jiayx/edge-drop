@@ -5,8 +5,12 @@ import type { RoomIndexEntry } from "@/room/types";
 import { lookupRoom, getRoomStub, getRoomIndexStub } from "@/room/store";
 
 const requireAdminAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+  const configuredToken = c.env.ADMIN_AUTH_TOKEN;
+  if (typeof configuredToken !== "string" || configuredToken.trim() === "") {
+    return c.json({ error: "Service unavailable" }, 503);
+  }
   const authToken = c.req.header("X-Admin-Token");
-  if (authToken !== c.env.ADMIN_AUTH_TOKEN) {
+  if (!authToken || authToken !== configuredToken) {
     return c.json({ error: "Unauthorized" }, 401);
   }
   await next();

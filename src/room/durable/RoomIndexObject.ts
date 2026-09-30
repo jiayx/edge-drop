@@ -1,3 +1,4 @@
+import { isValidRoomKey } from "@/lib/roomKey";
 import type { RoomIndexEntry } from "@/room/types";
 import { logUnexpected } from "@/lib/errors";
 
@@ -13,6 +14,9 @@ export class RoomIndexObject {
     const path = url.pathname;
 
     try {
+      if (request.method === "POST" && path.startsWith("/probe/")) {
+        return this.handleProbe(path.slice("/probe/".length));
+      }
       if (request.method === "GET" && path === "/list") {
         return this.handleList();
       }
@@ -36,6 +40,40 @@ export class RoomIndexObject {
       });
       return Response.json({ error: "Internal server error" }, { status: 500 });
     }
+  }
+
+  // These records live in per-IP objects, separate from the global room index.
+  // Persist and serialize admission so parallel requests or object restarts cannot
+  // reset the budget. Repeated activity in an admitted room does not consume it.
+  private async handleProbe(roomKey: string): Promise<Response> {
+    if (!isValidRoomKey(roomKey)) return new Response("Invalid room key", { status: 400 });
+    return this.state.storage.transaction(async (storage) => {
+      const now = Date.now();
+      const stored = await storage.get<Array<{ key: string; expiresAt: number }>>("probes") ?? [];
+      const probes = stored.filter((probe) => probe.expiresAt > now);
+      if (probes.some((probe) => probe.key === roomKey)) return new Response(null, { status: 204 });
+      if (probes.length >= 10) {
+        const retryAfter = Math.max(1, Math.ceil((Math.min(...probes.map((p) => p.expiresAt)) - now) / 1000));
+        return new Response(null, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+      }
+      probes.push({ key: roomKey, expiresAt: now + 60_000 });
+      await storage.put("probes", probes);
+      await storage.setAlarm(Math.min(...probes.map((probe) => probe.expiresAt)));
+      return new Response(null, { status: 204 });
+    });
+  }
+
+  async alarm(): Promise<void> {
+    await this.state.storage.transaction(async (storage) => {
+      const probes = (await storage.get<Array<{ key: string; expiresAt: number }>>("probes") ?? [])
+        .filter((probe) => probe.expiresAt > Date.now());
+      if (probes.length) {
+        await storage.put("probes", probes);
+        await storage.setAlarm(Math.min(...probes.map((probe) => probe.expiresAt)));
+      } else {
+        await storage.delete("probes");
+      }
+    });
   }
 
   private async handleList(): Promise<Response> {

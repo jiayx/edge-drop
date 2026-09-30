@@ -31,10 +31,32 @@ The development server runs at `http://localhost:5173`. Put local environment
 values in `.env`.
 
 ```bash
+pnpm test # tests require Node.js 22.15+ (or Node.js 24+)
+pnpm run test:runtime # builds and tests local Durable Objects and WebSocket upgrade
 pnpm exec tsc --noEmit
 pnpm build
 pnpm preview
 ```
+
+## Room discovery limits
+
+All public room routes share a per-IP allowance of 10 distinct room codes in a
+rolling 60-second window, including pages, joins, history, WebSocket upgrades,
+and file endpoints. Reusing the same code during that window does not consume
+additional slots for joining, reconnecting, and loading media. Once an admission
+expires, the next request needs a free slot; busy shared IPs can therefore still
+hit the allowance. Existing open WebSocket connections are not interrupted.
+The six-digit codes and share links are unchanged. Clients behind the same
+public IP share this allowance. A blocked new code returns HTTP 429 with
+`Retry-After`; admitted codes continue working.
+
+Admissions are serialized and persisted in separate per-IP objects using the
+existing `ROOM_INDEX` namespace. Each record holds at most 10 codes and expires
+via a Durable Object alarm. Only the platform's `CF-Connecting-IP` is trusted;
+missing addresses share a fallback bucket. This is a discovery limit, not a
+full flood limit for repeated requests, messages, or uploads to an admitted room.
+Room creation separately uses `ROOM_JOIN_RATE_LIMIT` (10/minute per IP).
+No new binding or migration is required.
 
 ## Configuration
 
@@ -65,6 +87,12 @@ Admin API requests use `X-Admin-Token`. The dashboard stores the token in browse
 session storage. Available endpoints include `/api/v1/admin/stats`,
 `/api/v1/admin/rooms`, `/api/v1/admin/rooms/:key`, and
 `POST /api/v1/admin/rooms/:key/config`.
+
+Admin APIs fail closed with HTTP 503 if `ADMIN_AUTH_TOKEN` is missing, empty,
+or whitespace-only. With a valid configuration, missing or incorrect request
+tokens receive HTTP 401. Tokens are compared exactly; use a token without leading
+or trailing whitespace (HTTP headers and the dashboard normalize those spaces).
+The deployment script rejects missing, empty, and whitespace-only required values.
 
 ## Deploy
 

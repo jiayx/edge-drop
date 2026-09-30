@@ -1,3 +1,4 @@
+import { enforceRoomProbeRateLimit } from "@/lib/roomProbeRateLimit";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { isValidRoomKey } from "@/lib/roomKey";
@@ -57,6 +58,9 @@ export async function createDirectUpload(c: Context<{ Bindings: Env }>): Promise
   const key = c.req.param("key") ?? "";
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
+
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);
@@ -128,6 +132,9 @@ export async function downloadFile(c: Context<{ Bindings: Env }>): Promise<Respo
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
 
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
+
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);
   if (isExpired(entry.expiresAt)) return c.json({ error: "Room expired" }, 410);
@@ -181,6 +188,9 @@ export async function deleteFile(c: Context<{ Bindings: Env }>): Promise<Respons
   const objectKey = decodeURIComponent(c.req.param("objectKey") ?? "");
 
   if (!isValidRoomKey(key)) return c.json({ error: "Invalid room key" }, 400);
+
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);

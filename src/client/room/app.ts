@@ -94,9 +94,14 @@ async function loadMoreHistory(context: RoomPageContext): Promise<void> {
       const res = await fetch(
         `/api/v1/rooms/${context.roomKey}/messages?beforeSeq=${context.state.oldestSeq}&limit=50`
       );
+      if (!res.ok) throw new Error(res.status === 429
+        ? "Too many room attempts. Please try again in a minute."
+        : "Could not load earlier messages. Please try again.");
       const data = await res.json() as { messages: Message[]; hasMore: boolean; nextSeq: number };
       prependHistory(context, data.messages, data.hasMore);
       hasMore = data.hasMore;
+    } catch (error) {
+      appendSystemNotice(context, error instanceof Error ? error.message : "Could not load earlier messages.");
     } finally {
       context.state.loadingHistory = false;
       if (hasMore) {
@@ -267,6 +272,15 @@ export async function bootstrapRoomPage(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId: identity.userId, displayName: identity.displayName }),
   });
+
+  if (res.status === 429) {
+    window.location.replace("/?error=rate-limited");
+    return;
+  }
+  if (!res.ok && res.status !== 404) {
+    appendLocalSystemNotice("Could not join room. Please reload to try again.");
+    return;
+  }
 
   if (res.status === 404) {
     window.location.replace("/?error=unavailable");

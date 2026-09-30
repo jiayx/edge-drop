@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { validateRequired } from "./deploy-vars.mjs";
 
 const DEPLOY_VAR_NAMES = [
   "MAX_FILE_SIZE_MB",
@@ -75,13 +76,6 @@ function pickVars(envValues, names) {
     if (value !== undefined) selected[name] = value;
   }
   return selected;
-}
-
-function validateRequired(selected, names, label) {
-  const missing = names.filter((name) => !(name in selected));
-  if (missing.length) {
-    throw new Error(`Missing ${label}: ${missing.join(", ")}`);
-  }
 }
 
 async function loadEnvFile(filePath) {

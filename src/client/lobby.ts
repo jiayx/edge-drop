@@ -23,6 +23,10 @@ if (lobbyRoot) {
     applyThemePreference(themeViewport);
   });
 
+  if (initialError === "rate-limited") {
+    showError("Too many room attempts. Please try again in a minute.");
+  }
+
   if (initialError === "unavailable") {
     showError("Room is not available.");
   }
@@ -71,6 +75,7 @@ if (lobbyRoot) {
       setLoading(true);
       try {
         const res = await fetch("/api/v1/rooms", { method: "POST" });
+        if (res.status === 429) throw new Error("Too many room attempts. Please try again in a minute.");
         if (!res.ok) throw new Error("Failed to create room");
         const { roomKey } = await res.json() as CreateRoomResponse;
         window.location.assign(`/room/${roomKey}`);
@@ -90,6 +95,7 @@ if (lobbyRoot) {
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/rooms/${key}`);
+      if (res.status === 429) throw new Error("Too many room attempts. Please try again in a minute.");
       if (res.status === 404) throw new Error("Room is not available.");
       if (!res.ok) throw new Error("Failed to join room");
       window.location.assign(`/room/${key}`);

@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "predeploy": "vite build",
     "deploy": "node scripts/deploy-worker.mjs",
-    "deploy:raw": "wrangler deploy"
+    "deploy:raw": "wrangler deploy",
+    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs",
+    "test:runtime": "npm run build && node tests/runtime-smoke.mjs && node tests/admin-runtime-smoke.mjs"
   },
   "dependencies": {
     "aws4fetch": "^1.0.20",

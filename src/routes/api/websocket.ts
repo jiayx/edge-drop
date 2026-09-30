@@ -1,3 +1,4 @@
+import { enforceRoomProbeRateLimit } from "@/lib/roomProbeRateLimit";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { isValidRoomKey } from "@/lib/roomKey";
@@ -14,6 +15,9 @@ export async function upgradeWebSocket(c: Context<{ Bindings: Env }>): Promise<R
   if (c.req.header("Upgrade") !== "websocket") {
     return c.json({ error: "Expected WebSocket upgrade" }, 426);
   }
+
+  const rateLimited = await enforceRoomProbeRateLimit(c, key);
+  if (rateLimited) return rateLimited;
 
   const entry = await lookupRoom(env, key);
   if (!entry) return c.json({ error: "Room not found" }, 404);
